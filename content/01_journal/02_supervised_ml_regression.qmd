@@ -2,4 +2,180 @@
 title: "02 Supervised Machine Learning Regression"
 author: "Maximilian Muza"
 date: "6/6/2024"
+params:
+  data_dir: "C:/Users/MaximilianMuza/Documents/Projects/ss24-bdml-MaximilianMuza/data/"
 ---
+
+Load the absolute path to the data directory.
+
+```{r}
+data_dir <- params$data_dir
+```
+
+
+# Libraries
+Load the following libraries. 
+
+```{r}
+library(tidyverse)
+library(tidyquant)
+library(broom)
+library(umap)
+```
+
+
+# Data
+
+```{r}
+# STOCK PRICES
+sp_500_prices_tbl <- read_rds("C:/Users/MaximilianMuza/Documents/Projects/ss24-bdml-MaximilianMuza/data/sp_500_prices_tbl.rds")
+sp_500_prices_tbl
+```
+
+```{r}
+# SECTOR INFORMATION
+sp_500_index_tbl <- read_rds(file.path(data_dir, "sp_500_index_tbl.rds"))
+sp_500_index_tbl
+```
+
+
+## Stock Prices Standardization
+Stock prices (adjusted stock price) are standardized by converting them into daily returns (percent change from previous day). This is done such that the stock prices are of the same magnitude and can thus be compared. Below is the sp 500 price table shown:
+
+```{r}
+sp_500_prices_tbl %>% glimpse()
+```
+
+```{r}
+sp_500_daily_returns_tbl <- sp_500_prices_tbl %>%
+  select(symbol, date, adjusted) %>%
+  filter(date >= as.Date("2018-01-01")) %>%
+  group_by(symbol) %>%
+  mutate(adjusted_lag = lag(adjusted)) %>%
+  filter(!is.na(adjusted_lag)) %>%
+  mutate(difference = adjusted - adjusted_lag) %>%
+  mutate(pct_return = difference / adjusted_lag) %>%
+  select(symbol, date, pct_return) %>%
+  ungroup()
+sp_500_daily_returns_tbl
+```
+
+
+## Conversion to User-Item Format
+The next step involves converting to a user-item format with the `symbol` in the first column and every other column the value of the _daily returns_ (`pct_return`) for every stock at each `date`. The user in this case is the `symbol` (company), and the item in this case is the `pct_return` at each `date`.
+
+Importing the correct results first (just in case I was not able to complete the last step).
+
+```{r}
+sp_500_daily_returns_tbl <- read_rds(file.path(data_dir, "sp_500_daily_returns_tbl.rds"))
+sp_500_daily_returns_tbl
+```
+
+And the conversion follows with:
+
+```{r}
+stock_date_matrix_tbl <- sp_500_daily_returns_tbl %>%
+  spread(key = date, value = pct_return, fill = 0)
+stock_date_matrix_tbl
+```
+
+
+## K-Means Clustering
+
+Importing the correct results first (just in case I was not able to complete the last step).
+
+```{r}
+stock_date_matrix_tbl <- read_rds(file.path(data_dir, "stock_date_matrix_tbl.rds"))
+stock_date_matrix_tbl
+```
+
+And then executing the KMeans operation:
+
+```{r}
+# Create kmeans_obj for 4 centers
+NUM_CENTERS <- 4
+N_START = 20
+
+kmeans_obj <- stock_date_matrix_tbl %>%
+    select(-symbol) %>%
+    kmeans(centers = NUM_CENTERS, nstart = N_START)
+kmeans_obj$cluster
+```
+
+And using `glance()` to get the `tot.withinss`. 
+
+```{r}
+kmeans_obj %>% glance()
+```
+
+
+## Finding Optimal K
+
+```{r}
+kmeans_mapper <- function(center = 3) {
+    stock_date_matrix_tbl %>%
+        select(-symbol) %>%
+        kmeans(centers = center, nstart = 20)
+}
+```
+
+```{r}
+# Use purrr to map
+kmeans_mapped_tbl <- tibble(centers = 1:30) %>%
+    mutate(k_means = centers %>% map(kmeans_mapper)) %>%
+    mutate(glance  = k_means %>% map(glance))
+kmeans_mapped_tbl
+```
+
+```{r}
+# Visualize Scree Plot
+kmeans_mapped_tbl %>%
+    unnest(glance) %>%
+
+    ggplot(aes(x = centers, y = tot.withinss)) +
+    geom_point() +
+    geom_line()
+
+    labs(title = "Skree Plot",
+    subtitle = "Measures the distance each of the symbol is from the closes K-Means center")
+```
+
+
+## UMAP Application
+
+```{r}
+k_means_mapped_tbl <- read_rds(file.path(data_dir, "k_means_mapped_tbl.rds"))
+```
+
+```{r}
+# Apply UMAP
+umap_results <- stock_date_matrix_tbl %>%
+  select(-symbol) %>%
+  umap()
+umap_results
+```
+
+```{r}
+# Convert umap results to tibble with symbols
+umap_results_tbl <- umap_results$layout %>%
+  as_tibble() %>%
+  bind_cols(stock_date_matrix_tbl %>% select(symbol))
+umap_results_tbl
+```
+
+```{r}
+umap_results_tbl
+```
+
+Finally, let's make a quick visualization of the `umap_results_tbl`.
+
+- Pipe the `umap_results_tbl` into `ggplot()` mapping the columns to x-axis and y-axis
+- Add a `geom_point()` geometry with an `alpha = 0.5`
+- Apply `theme_tq()` and add a title "UMAP Projection"
+
+```{r}
+# Visualize UMAP results
+
+```
+
+We can now see that we have some clusters. However, we still need to combine the K-Means clusters and the UMAP 2D representation. 
