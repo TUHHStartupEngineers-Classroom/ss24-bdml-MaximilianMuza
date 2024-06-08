@@ -1,10 +1,17 @@
 ---
 title: "02 Supervised Machine Learning Regression"
 author: "Maximilian Muza"
-date: "6/6/2024"
 params:
-  data_dir: "C:/Users/MaximilianMuza/Documents/Projects/ss24-bdml-MaximilianMuza/data/"
+  data_dir: "../../data/"
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE
+    )
+```
 
 Load the absolute path to the data directory.
 
@@ -12,170 +19,106 @@ Load the absolute path to the data directory.
 data_dir <- params$data_dir
 ```
 
-
 # Libraries
-Load the following libraries. 
-
 ```{r}
+library(tidymodels)
 library(tidyverse)
-library(tidyquant)
-library(broom)
-library(umap)
+library(recipes)
+library(rsample)
+library(yardstick)
 ```
-
 
 # Data
-
 ```{r}
-# STOCK PRICES
-sp_500_prices_tbl <- read_rds("C:/Users/MaximilianMuza/Documents/Projects/ss24-bdml-MaximilianMuza/data/sp_500_prices_tbl.rds")
-sp_500_prices_tbl
+bike_features_tbl <- readRDS(file.path(data_dir, "bike_features_tbl.rds"))
+bike_features_tbl
 ```
 
+Transform dataset
 ```{r}
-# SECTOR INFORMATION
-sp_500_index_tbl <- read_rds(file.path(data_dir, "sp_500_index_tbl.rds"))
-sp_500_index_tbl
+bike_features_trafo_tbl <- bike_features_tbl %>% 
+    select(model:url, `Rear Derailleur`, `Shift Lever`) %>%
+    mutate_if(is.numeric, ~replace(., is.na(.), 0)) %>%
+    mutate(id = row_number()) %>% 
+    select(id, everything(), -url)
+bike_features_trafo_tbl
 ```
 
-
-## Stock Prices Standardization
-Stock prices (adjusted stock price) are standardized by converting them into daily returns (percent change from previous day). This is done such that the stock prices are of the same magnitude and can thus be compared. Below is the sp 500 price table shown:
-
+Create training and testing dataset (Hold-out method)
 ```{r}
-sp_500_prices_tbl %>% glimpse()
-```
+bike_features_trafo_tbl %>% distinct(category_2)
 
-```{r}
-sp_500_daily_returns_tbl <- sp_500_prices_tbl %>%
-  select(symbol, date, adjusted) %>%
-  filter(date >= as.Date("2018-01-01")) %>%
-  group_by(symbol) %>%
-  mutate(adjusted_lag = lag(adjusted)) %>%
-  filter(!is.na(adjusted_lag)) %>%
-  mutate(difference = adjusted - adjusted_lag) %>%
-  mutate(pct_return = difference / adjusted_lag) %>%
-  select(symbol, date, pct_return) %>%
-  ungroup()
-sp_500_daily_returns_tbl
+set.seed(123)
+split <- initial_split(bike_features_trafo_tbl, prop = 3/4, strata = "category_2")
+
+split %>% training() %>% distinct(category_2)
+split %>% testing() %>% distinct(category_2)
+
+train_tbl <- training(split)
+test_tbl  <- testing(split)
+
+train_tbl <- train_tbl %>% set_names(str_replace_all(names(train_tbl), " |-", "_"))
+test_tbl  <- test_tbl  %>% set_names(str_replace_all(names(test_tbl),  " |-", "_"))
 ```
 
 
-## Conversion to User-Item Format
-The next step involves converting to a user-item format with the `symbol` in the first column and every other column the value of the _daily returns_ (`pct_return`) for every stock at each `date`. The user in this case is the `symbol` (company), and the item in this case is the `pct_return` at each `date`.
-
-Importing the correct results first (just in case I was not able to complete the last step).
-
+# Model Construction
+First step involves building a ML model.
 ```{r}
-sp_500_daily_returns_tbl <- read_rds(file.path(data_dir, "sp_500_daily_returns_tbl.rds"))
-sp_500_daily_returns_tbl
-```
-
-And the conversion follows with:
-
-```{r}
-stock_date_matrix_tbl <- sp_500_daily_returns_tbl %>%
-  spread(key = date, value = pct_return, fill = 0)
-stock_date_matrix_tbl
+linear_reg_model <- linear_reg(mode = "regression") %>%
+    set_engine("lm")
+linear_reg_model
 ```
 
 
-## K-Means Clustering
-
-Importing the correct results first (just in case I was not able to complete the last step).
-
+# Feature Creation
+In this step, features are being created by the use of the recipe package.
 ```{r}
-stock_date_matrix_tbl <- read_rds(file.path(data_dir, "stock_date_matrix_tbl.rds"))
-stock_date_matrix_tbl
-```
-
-And then executing the KMeans operation:
-
-```{r}
-# Create kmeans_obj for 4 centers
-NUM_CENTERS <- 4
-N_START = 20
-
-kmeans_obj <- stock_date_matrix_tbl %>%
-    select(-symbol) %>%
-    kmeans(centers = NUM_CENTERS, nstart = N_START)
-kmeans_obj$cluster
-```
-
-And using `glance()` to get the `tot.withinss`. 
-
-```{r}
-kmeans_obj %>% glance()
+# Determine feature trafo
+bike_recipe <- recipe(price ~ category_2 + frame_material, data = train_tbl) %>%
+  step_rm(url, model) %>%
+  step_dummy(all_nominal(), -all_outcomes(), one_hot = TRUE)
+bike_recipe
 ```
 
 
-## Finding Optimal K
-
+# Model and Recipe Bundling 
+The ML model and the recipe is being bundled by the use of the workflow package.
 ```{r}
-kmeans_mapper <- function(center = 3) {
-    stock_date_matrix_tbl %>%
-        select(-symbol) %>%
-        kmeans(centers = center, nstart = 20)
-}
-```
-
-```{r}
-# Use purrr to map
-kmeans_mapped_tbl <- tibble(centers = 1:30) %>%
-    mutate(k_means = centers %>% map(kmeans_mapper)) %>%
-    mutate(glance  = k_means %>% map(glance))
-kmeans_mapped_tbl
-```
-
-```{r}
-# Visualize Scree Plot
-kmeans_mapped_tbl %>%
-    unnest(glance) %>%
-
-    ggplot(aes(x = centers, y = tot.withinss)) +
-    geom_point() +
-    geom_line()
-
-    labs(title = "Skree Plot",
-    subtitle = "Measures the distance each of the symbol is from the closes K-Means center")
+bike_workflow <- workflow() %>% 
+  add_model(linear_reg_model) %>% 
+  add_recipe(bike_recipe) %>%
+  fit(data = train_tbl)
+bike_workflow
 ```
 
 
-## UMAP Application
-
+# Performance Measures 
+Model evaluation by the use of the yardstick package
 ```{r}
-k_means_mapped_tbl <- read_rds(file.path(data_dir, "k_means_mapped_tbl.rds"))
+evaluation <- bike_workflow %>%
+  predict(new_data = test_tbl) %>%
+  bind_cols(test_tbl %>% select(price)) %>%
+  metrics(truth = price, estimate = .pred)
+evaluation
 ```
 
+
+# Visualization
 ```{r}
-# Apply UMAP
-umap_results <- stock_date_matrix_tbl %>%
-  select(-symbol) %>%
-  umap()
-umap_results
+g1 <- bike_features_trafo_tbl %>% 
+    mutate(category_2 = as.factor(category_2) %>% 
+           fct_reorder(price)) %>% 
+    
+    ggplot(aes(category_2, price)) +
+    geom_violin() +
+    geom_jitter(width = 0.1, alpha = 0.5, color = "#2dc6d6") +
+    coord_flip() +
+    facet_wrap(~ frame_material) +
+    scale_y_continuous(labels = scales::dollar_format()) +
+    labs(
+        title = "Unit Price for Each Model",
+        y = "", x = "Category 2"
+    )
+g1
 ```
-
-```{r}
-# Convert umap results to tibble with symbols
-umap_results_tbl <- umap_results$layout %>%
-  as_tibble() %>%
-  bind_cols(stock_date_matrix_tbl %>% select(symbol))
-umap_results_tbl
-```
-
-```{r}
-umap_results_tbl
-```
-
-Finally, let's make a quick visualization of the `umap_results_tbl`.
-
-- Pipe the `umap_results_tbl` into `ggplot()` mapping the columns to x-axis and y-axis
-- Add a `geom_point()` geometry with an `alpha = 0.5`
-- Apply `theme_tq()` and add a title "UMAP Projection"
-
-```{r}
-# Visualize UMAP results
-
-```
-
-We can now see that we have some clusters. However, we still need to combine the K-Means clusters and the UMAP 2D representation. 
