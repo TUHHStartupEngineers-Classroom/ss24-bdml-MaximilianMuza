@@ -1,66 +1,31 @@
----
-title: "04 Automated Machine Learning with H2O (II)"
-author: "Maximilian Muza"
-date: "6/6/2024"
-params:
-  data_dir: "../../data/"
-  models_dir: "../../models/"
----
+data_dir <- "data/"
+models_dir <- "models/"
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-    echo = TRUE,
-    message = FALSE,
-    warning = FALSE
-    )
-```
-
-Load the absolute path to the data directory.
-
-```{r}
-data_dir <- params$data_dir
-models_dir <- params$models_dir
-```
-
-# Libraries
-```{r}
 library(h2o)
 library(tidyverse)
 library(readxl)
 library(recipes)
 library(rsample)
-```
 
-# Load Data
-```{r}
 product_backorders_tbl <- read_csv(file = file.path(data_dir, "product_backorders.txt"))
 product_backorders_tbl
-```
 
-Split data into testing + training dataset
-```{r}
 set.seed(123)
 split <- initial_split(product_backorders_tbl, prop = 3/4)
 
 train_tbl <- training(split)
 test_tbl  <- testing(split)
-```
 
-# Specify Predictor + Responde Variables
-```{r}
 product_recipe_obj <- recipe(went_on_backorder ~., data = train_tbl) %>% 
-    step_zv(all_predictors()) %>% 
-    step_dummy(all_nominal(), -all_outcomes()) %>%
-    # step_dummy(all_nominal(), -all_outcomes(), one_hot = TRUE) %>%
-    prep()
+  step_zv(all_predictors()) %>% 
+  step_dummy(all_nominal(), -all_outcomes()) %>%
+  # step_dummy(all_nominal(), -all_outcomes(), one_hot = TRUE) %>%
+  prep()
 product_recipe_obj
 
 train_trafo_tbl <- bake(product_recipe_obj, new_data = train_tbl)
 test_trafo_tbl  <- bake(product_recipe_obj, new_data = test_tbl)
-```
 
-# Run H2O
-```{r}
 h2o.init()
 
 split_h2o <- h2o.splitFrame(as.h2o(train_trafo_tbl), ratios = c(3/4), seed = 123)
@@ -70,9 +35,7 @@ test_h2o  <- as.h2o(test_trafo_tbl)
 
 y <- "went_on_backorder"
 x <- setdiff(names(train_h2o), y)
-```
 
-```{r}
 automl_models_h2o <- h2o.automl(
   x = x,
   y = y,
@@ -82,25 +45,16 @@ automl_models_h2o <- h2o.automl(
   max_runtime_secs  = 30,
   nfolds            = 5
 )
-```
 
-# Inspect Leaderboard
-```{r}
 slotNames(automl_models_h2o)
 automl_models_h2o@leaderboard
-```
 
-# Predict using the Leader Model
-```{r}
 leader_model <- automl_models_h2o@leader
 leader_model
 
 predictions <- h2o.predict(leader_model, newdata = test_h2o)
 predictions
-```
 
-# Save Model
-```{r}
-# h2o.getModel(leader_model@model_id) %>%
-  # h2o.saveModel(path = models_dir)
-```
+h2o.getModel(leader_model@model_id) %>%
+  h2o.saveModel(path = models_dir)
+
