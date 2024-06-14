@@ -8,8 +8,8 @@
 # ==============================================================
 
 # Define global variables
-data_dir <- "data/"
-models_dir <- "models/"
+data_dir <- "../../data/" #"data/" # use this dir if running from root dir
+models_dir <- "../../models/" #"models/" # use this dir if running from root dir
 
 # Load libraries
 library(h2o)

@@ -95,8 +95,6 @@ plot_h2o_leaderboard(automl_models_h2o@leaderboard, order_by = "auc")
 model <- automl_models_h2o@leader
 model
 
-model_details <- h2o.getModelDetails(model)
-
 h2o.performance(model, newdata = test_h2o)
 
 hyper_params = list(

@@ -4,13 +4,17 @@ author: "Maximilian Muza"
 date: "6/6/2024"
 ---
 
+
 # Libraries
+
 ```{r}
 library(cowplot)
 library(glue)
 ```
 
+
 # Source Automated ML h2O
+
 ```{r}
 source("04_automated_ml_h2o_2.R")
 # data_dir <- "../../data/" #"data/" # use this dir if running from root dir
@@ -73,7 +77,9 @@ source("04_automated_ml_h2o_2.R")
 # automl_models_h2o@leaderboard
 ```
 
+
 # 1. Leaderboard Visualization
+
 ```{r}
 # Transform AutoML leaderboard
 automl_models_h2o@leaderboard %>% 
@@ -149,7 +155,9 @@ plot_h2o_leaderboard <- function(h2o_leaderboard, order_by = c("auc", "logloss")
 plot_h2o_leaderboard(automl_models_h2o@leaderboard, order_by = "auc")
 ```
 
+
 # 2. Model Hyperparameter Tuning with Grid Search
+
 ```{r}
 model <- automl_models_h2o@leader
 model
@@ -179,7 +187,9 @@ best_model %>% h2o.auc(train = T, valid = T, xval = T)
 h2o.getGrid(grid_id = "grid", sort_by = "auc", decreasing = TRUE)
 ```
 
+
 # 3. Visualization of Trade-off between Precision, Recall and Optimal Threshold
+
 ```{r}
 performance_h2o <- h2o.performance(best_model, newdata = test_h2o)
 
@@ -226,7 +236,9 @@ performance_tbl %>%
   theme_new
 ```
 
+
 # 4. ROC Plot
+
 ```{r}
 path <- "models/StackedEnsemble_AllModels_1_AutoML_1_20240612_120110"
 
@@ -274,7 +286,9 @@ model_metrics_tbl %>%
   )
 ```
 
+
 # 5. Precision vs Recall Plot
+
 ```{r}
 load_model_performance_metrics <- function(path, test_tbl) {
   
@@ -314,7 +328,9 @@ model_metrics_tbl %>%
   )
 ```
 
+
 # 6. Gain Plot
+
 ```{r}
 gain_lift_tbl <- performance_h2o %>%
   h2o.gainsLift() %>%
@@ -340,7 +356,9 @@ gain_transformed_tbl %>%
   theme_new
 ```
 
+
 # 7. Lift Plot
+
 ```{r}
 lift_transformed_tbl <- gain_lift_tbl %>% 
   select(group, cumulative_data_fraction, cumulative_capture_rate, cumulative_lift) %>%
@@ -360,7 +378,9 @@ lift_transformed_tbl %>%
   theme_new
 ```
 
+
 # 8. Dashboard with cowplot
+
 ```{r}
 h2o_leaderboard <- automl_models_h2o@leaderboard
 newdata <- test_tbl
