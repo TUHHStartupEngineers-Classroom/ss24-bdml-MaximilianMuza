@@ -202,7 +202,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   
 
 
-</header><p>Load the absolute path to the data directory.</p>
+</header><blockquote class="blockquote">
+<p>As issues with running h2o in the qmd-file where detected, the complete code is also available in an R-file: 04_automated_ml_h2o_2.R. This file executes the complete code properly. Code parts in this qmd-file that couldn’t be run due to this issue with h2o where not executed, but only displayed.</p>
+</blockquote>
+<p>Load the absolute path to the data directory.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a>data_dir <span class="ot">&lt;-</span> params<span class="sc">$</span>data_dir</span>
 <span id="cb1-2"><a href="#cb1-2"></a>models_dir <span class="ot">&lt;-</span> params<span class="sc">$</span>models_dir</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -317,48 +320,141 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="header-section-number">4</span> Run H2O</h1>
 <p>Init H2O and create H2O test and train datasets</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1"></a><span class="fu">h2o.init</span>()</span>
-<span id="cb26-2"><a href="#cb26-2"></a></span>
-<span id="cb26-3"><a href="#cb26-3"></a>split_h2o <span class="ot">&lt;-</span> <span class="fu">h2o.splitFrame</span>(<span class="fu">as.h2o</span>(train_trafo_tbl), <span class="at">ratios =</span> <span class="fu">c</span>(<span class="dv">3</span><span class="sc">/</span><span class="dv">4</span>), <span class="at">seed =</span> <span class="dv">123</span>)</span>
-<span id="cb26-4"><a href="#cb26-4"></a>train_h2o <span class="ot">&lt;-</span> split_h2o[[<span class="dv">1</span>]]</span>
-<span id="cb26-5"><a href="#cb26-5"></a>valid_h2o <span class="ot">&lt;-</span> split_h2o[[<span class="dv">2</span>]]</span>
-<span id="cb26-6"><a href="#cb26-6"></a>test_h2o  <span class="ot">&lt;-</span> <span class="fu">as.h2o</span>(test_trafo_tbl)</span>
-<span id="cb26-7"><a href="#cb26-7"></a></span>
-<span id="cb26-8"><a href="#cb26-8"></a>y <span class="ot">&lt;-</span> <span class="st">"went_on_backorder"</span></span>
-<span id="cb26-9"><a href="#cb26-9"></a>x <span class="ot">&lt;-</span> <span class="fu">setdiff</span>(<span class="fu">names</span>(train_h2o), y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1"></a><span class="fu">h2o.init</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt;  Connection successful!
+#&gt; 
+#&gt; R is connected to the H2O cluster: 
+#&gt;     H2O cluster uptime:         4 hours 30 minutes 
+#&gt;     H2O cluster timezone:       Europe/Berlin 
+#&gt;     H2O data parsing timezone:  UTC 
+#&gt;     H2O cluster version:        3.44.0.3 
+#&gt;     H2O cluster version age:    5 months and 24 days 
+#&gt;     H2O cluster name:           H2O_started_from_R_MaximilianMuza_weq459 
+#&gt;     H2O cluster total nodes:    1 
+#&gt;     H2O cluster total memory:   5.75 GB 
+#&gt;     H2O cluster total cores:    16 
+#&gt;     H2O cluster allowed cores:  16 
+#&gt;     H2O cluster healthy:        TRUE 
+#&gt;     H2O Connection ip:          localhost 
+#&gt;     H2O Connection port:        54321 
+#&gt;     H2O Connection proxy:       NA 
+#&gt;     H2O Internal Security:      FALSE 
+#&gt;     R Version:                  R version 4.4.0 (2024-04-24 ucrt)</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; Warning in h2o.clusterInfo(): 
+#&gt; Your H2O cluster version is (5 months and 24 days) old. There may be a newer version available.
+#&gt; Please download and install the latest version from: https://h2o-release.s3.amazonaws.com/h2o/latest_stable.html</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1"></a>split_h2o <span class="ot">&lt;-</span> <span class="fu">h2o.splitFrame</span>(<span class="fu">as.h2o</span>(train_trafo_tbl), <span class="at">ratios =</span> <span class="fu">c</span>(<span class="dv">3</span><span class="sc">/</span><span class="dv">4</span>), <span class="at">seed =</span> <span class="dv">123</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======================================================================| 100%</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1"></a>train_h2o <span class="ot">&lt;-</span> split_h2o[[<span class="dv">1</span>]]</span>
+<span id="cb31-2"><a href="#cb31-2"></a>valid_h2o <span class="ot">&lt;-</span> split_h2o[[<span class="dv">2</span>]]</span>
+<span id="cb31-3"><a href="#cb31-3"></a>test_h2o  <span class="ot">&lt;-</span> <span class="fu">as.h2o</span>(test_trafo_tbl)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======================================================================| 100%</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1"></a>y <span class="ot">&lt;-</span> <span class="st">"went_on_backorder"</span></span>
+<span id="cb33-2"><a href="#cb33-2"></a>x <span class="ot">&lt;-</span> <span class="fu">setdiff</span>(<span class="fu">names</span>(train_h2o), y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Create AutoML ML Models</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1"></a>automl_models_h2o <span class="ot">&lt;-</span> <span class="fu">h2o.automl</span>(</span>
-<span id="cb27-2"><a href="#cb27-2"></a>  <span class="at">x =</span> x,</span>
-<span id="cb27-3"><a href="#cb27-3"></a>  <span class="at">y =</span> y,</span>
-<span id="cb27-4"><a href="#cb27-4"></a>  <span class="at">training_frame    =</span> train_h2o,</span>
-<span id="cb27-5"><a href="#cb27-5"></a>  <span class="at">validation_frame  =</span> valid_h2o,</span>
-<span id="cb27-6"><a href="#cb27-6"></a>  <span class="at">leaderboard_frame =</span> test_h2o,</span>
-<span id="cb27-7"><a href="#cb27-7"></a>  <span class="at">max_runtime_secs  =</span> <span class="dv">30</span>,</span>
-<span id="cb27-8"><a href="#cb27-8"></a>  <span class="at">nfolds            =</span> <span class="dv">5</span></span>
-<span id="cb27-9"><a href="#cb27-9"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1"></a>automl_models_h2o <span class="ot">&lt;-</span> <span class="fu">h2o.automl</span>(</span>
+<span id="cb34-2"><a href="#cb34-2"></a>  <span class="at">x =</span> x,</span>
+<span id="cb34-3"><a href="#cb34-3"></a>  <span class="at">y =</span> y,</span>
+<span id="cb34-4"><a href="#cb34-4"></a>  <span class="at">training_frame    =</span> train_h2o,</span>
+<span id="cb34-5"><a href="#cb34-5"></a>  <span class="at">validation_frame  =</span> valid_h2o,</span>
+<span id="cb34-6"><a href="#cb34-6"></a>  <span class="at">leaderboard_frame =</span> test_h2o,</span>
+<span id="cb34-7"><a href="#cb34-7"></a>  <span class="at">max_runtime_secs  =</span> <span class="dv">30</span>,</span>
+<span id="cb34-8"><a href="#cb34-8"></a>  <span class="at">nfolds            =</span> <span class="dv">5</span></span>
+<span id="cb34-9"><a href="#cb34-9"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |===                                                                   |   4%
+#&gt; 13:47:22.713: User specified a validation frame with cross-validation still enabled. Please note that the models will still be validated using cross-validation only, the validation frame will be used to provide purely informative validation metrics on the trained models.
+#&gt; 13:47:22.717: AutoML: XGBoost is not available; skipping it.
+  |                                                                            
+  |=========                                                             |  13%
+  |                                                                            
+  |================                                                      |  22%
+  |                                                                            
+  |======================                                                |  32%
+  |                                                                            
+  |============================                                          |  41%
+  |                                                                            
+  |===================================                                   |  50%
+  |                                                                            
+  |=========================================                             |  59%
+  |                                                                            
+  |===============================================                       |  68%
+  |                                                                            
+  |======================================================                |  77%
+  |                                                                            
+  |============================================================          |  86%
+  |                                                                            
+  |===================================================================   |  96%
+  |                                                                            
+  |======================================================================| 100%</code></pre>
+</div>
 </div>
 </section><section id="inspect-leaderboard" class="level1" data-number="5"><h1 data-number="5">
 <span class="header-section-number">5</span> Inspect Leaderboard</h1>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1"></a><span class="fu">slotNames</span>(automl_models_h2o)</span>
-<span id="cb28-2"><a href="#cb28-2"></a>automl_models_h2o<span class="sc">@</span>leaderboard</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1"></a><span class="fu">slotNames</span>(automl_models_h2o)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; [1] "project_name"   "leader"         "leaderboard"    "event_log"     
+#&gt; [5] "modeling_steps" "training_info"</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1"></a>automl_models_h2o<span class="sc">@</span>leaderboard</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt;                                                   model_id       auc   logloss
+#&gt; 1    StackedEnsemble_AllModels_2_AutoML_16_20240614_134722 0.9521870 0.1645202
+#&gt; 2 StackedEnsemble_BestOfFamily_3_AutoML_16_20240614_134722 0.9520666 0.1654761
+#&gt; 3    StackedEnsemble_AllModels_1_AutoML_16_20240614_134722 0.9515764 0.1649343
+#&gt; 4 StackedEnsemble_BestOfFamily_2_AutoML_16_20240614_134722 0.9513253 0.1659301
+#&gt; 5                          GBM_4_AutoML_16_20240614_134722 0.9480310 0.1704831
+#&gt; 6                          GBM_3_AutoML_16_20240614_134722 0.9479756 0.1683996
+#&gt;       aucpr mean_per_class_error      rmse        mse
+#&gt; 1 0.7500758            0.1586680 0.2219098 0.04924395
+#&gt; 2 0.7467100            0.1564062 0.2222684 0.04940322
+#&gt; 3 0.7491104            0.1583395 0.2219286 0.04925230
+#&gt; 4 0.7454155            0.1585764 0.2225161 0.04951343
+#&gt; 5 0.7318596            0.1581294 0.2252222 0.05072504
+#&gt; 6 0.7436680            0.1569069 0.2228497 0.04966198
+#&gt; 
+#&gt; [14 rows x 7 columns]</code></pre>
+</div>
 </div>
 </section><section id="predict-using-the-leader-model" class="level1" data-number="6"><h1 data-number="6">
 <span class="header-section-number">6</span> Predict using the Leader Model</h1>
+<p>This code part is not executing in a qmd-file due to the issue with h2o initialization. So it is not executed here. Run the R file to see the outputs.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1"></a>leader_model <span class="ot">&lt;-</span> automl_models_h2o<span class="sc">@</span>leader</span>
-<span id="cb29-2"><a href="#cb29-2"></a>leader_model</span>
-<span id="cb29-3"><a href="#cb29-3"></a></span>
-<span id="cb29-4"><a href="#cb29-4"></a>predictions <span class="ot">&lt;-</span> <span class="fu">h2o.predict</span>(leader_model, <span class="at">newdata =</span> test_h2o)</span>
-<span id="cb29-5"><a href="#cb29-5"></a>predictions</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1"></a>leader_model <span class="ot">&lt;-</span> automl_models_h2o<span class="sc">@</span>leader</span>
+<span id="cb40-2"><a href="#cb40-2"></a>leader_model</span>
+<span id="cb40-3"><a href="#cb40-3"></a></span>
+<span id="cb40-4"><a href="#cb40-4"></a>predictions <span class="ot">&lt;-</span> <span class="fu">h2o.predict</span>(leader_model, <span class="at">newdata =</span> test_h2o)</span>
+<span id="cb40-5"><a href="#cb40-5"></a>predictions</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section><section id="save-model" class="level1" data-number="7"><h1 data-number="7">
 <span class="header-section-number">7</span> Save Model</h1>
+<p>This code part is not executing in a qmd-file due to the issue with h2o initialization. So it is not executed here. Run the R file to see the outputs.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1"></a><span class="fu">h2o.getModel</span>(leader_model<span class="sc">@</span>model_id) <span class="sc">%&gt;%</span></span>
-<span id="cb30-2"><a href="#cb30-2"></a>  <span class="fu">h2o.saveModel</span>(<span class="at">path =</span> models_dir)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1"></a><span class="fu">h2o.getModel</span>(leader_model<span class="sc">@</span>model_id) <span class="sc">%&gt;%</span></span>
+<span id="cb41-2"><a href="#cb41-2"></a>  <span class="fu">h2o.saveModel</span>(<span class="at">path =</span> models_dir)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 
 
