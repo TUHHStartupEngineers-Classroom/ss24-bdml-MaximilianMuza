@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.4.553">
+<meta name="generator" content="quarto-1.4.555">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <meta name="author" content="Maximilian Muza">
 <meta name="dcterms.date" content="2024-06-06">
@@ -266,9 +266,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1"></a>product_recipe_obj <span class="ot">&lt;-</span> <span class="fu">recipe</span>(went_on_backorder <span class="sc">~</span>., <span class="at">data =</span> train_tbl) <span class="sc">%&gt;%</span> </span>
 <span id="cb11-2"><a href="#cb11-2"></a>    <span class="fu">step_zv</span>(<span class="fu">all_predictors</span>()) <span class="sc">%&gt;%</span> </span>
-<span id="cb11-3"><a href="#cb11-3"></a>    <span class="fu">step_dummy</span>(<span class="fu">all_nominal</span>(), <span class="sc">-</span><span class="fu">all_outcomes</span>(), <span class="at">one_hot =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb11-4"><a href="#cb11-4"></a>    <span class="fu">prep</span>()</span>
-<span id="cb11-5"><a href="#cb11-5"></a>product_recipe_obj</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb11-3"><a href="#cb11-3"></a>    <span class="fu">step_dummy</span>(<span class="fu">all_nominal</span>(), <span class="sc">-</span><span class="fu">all_outcomes</span>()) <span class="sc">%&gt;%</span></span>
+<span id="cb11-4"><a href="#cb11-4"></a>    <span class="co"># step_dummy(all_nominal(), -all_outcomes(), one_hot = TRUE) %&gt;%</span></span>
+<span id="cb11-5"><a href="#cb11-5"></a>    <span class="fu">prep</span>()</span>
+<span id="cb11-6"><a href="#cb11-6"></a>product_recipe_obj</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>#&gt; </code></pre>
 </div>
@@ -309,349 +310,55 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output cell-output-stderr">
 <pre><code>#&gt; • Dummy variables from: potential_issue and deck_risk, ... | Trained</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1"></a>train_trafo_tbl <span class="ot">&lt;-</span> <span class="fu">bake</span>(product_recipe_obj, <span class="at">new_data =</span> train_tbl)</span>
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1"></a>train_trafo_tbl  <span class="ot">&lt;-</span> <span class="fu">bake</span>(product_recipe_obj, <span class="at">new_data =</span> train_tbl)</span>
 <span id="cb25-2"><a href="#cb25-2"></a>test_trafo_tbl  <span class="ot">&lt;-</span> <span class="fu">bake</span>(product_recipe_obj, <span class="at">new_data =</span> test_tbl)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section><section id="run-h2o" class="level1" data-number="4"><h1 data-number="4">
 <span class="header-section-number">4</span> Run H2O</h1>
+<p>Init H2O and create H2O test and train datasets</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1"></a><span class="fu">h2o.init</span>(<span class="at">max_mem_size=</span><span class="st">"4G"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt; 
-#&gt; H2O is not running yet, starting it now...
-#&gt; 
-#&gt; Note:  In case of errors look at the following log files:
-#&gt;     C:\Users\MAXIMI~1\AppData\Local\Temp\RtmpwJxRE1\file3994653231f5/h2o_MaximilianMuza_started_from_r.out
-#&gt;     C:\Users\MAXIMI~1\AppData\Local\Temp\RtmpwJxRE1\file399445d140c0/h2o_MaximilianMuza_started_from_r.err
-#&gt; 
-#&gt; 
-#&gt; Starting H2O JVM and connecting:  Connection successful!
-#&gt; 
-#&gt; R is connected to the H2O cluster: 
-#&gt;     H2O cluster uptime:         4 seconds 707 milliseconds 
-#&gt;     H2O cluster timezone:       Europe/Berlin 
-#&gt;     H2O data parsing timezone:  UTC 
-#&gt;     H2O cluster version:        3.44.0.3 
-#&gt;     H2O cluster version age:    5 months and 20 days 
-#&gt;     H2O cluster name:           H2O_started_from_R_MaximilianMuza_weq459 
-#&gt;     H2O cluster total nodes:    1 
-#&gt;     H2O cluster total memory:   3.54 GB 
-#&gt;     H2O cluster total cores:    16 
-#&gt;     H2O cluster allowed cores:  16 
-#&gt;     H2O cluster healthy:        TRUE 
-#&gt;     H2O Connection ip:          localhost 
-#&gt;     H2O Connection port:        54321 
-#&gt;     H2O Connection proxy:       NA 
-#&gt;     H2O Internal Security:      FALSE 
-#&gt;     R Version:                  R version 4.4.0 (2024-04-24 ucrt)</code></pre>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1"></a><span class="fu">h2o.init</span>()</span>
+<span id="cb26-2"><a href="#cb26-2"></a></span>
+<span id="cb26-3"><a href="#cb26-3"></a>split_h2o <span class="ot">&lt;-</span> <span class="fu">h2o.splitFrame</span>(<span class="fu">as.h2o</span>(train_trafo_tbl), <span class="at">ratios =</span> <span class="fu">c</span>(<span class="dv">3</span><span class="sc">/</span><span class="dv">4</span>), <span class="at">seed =</span> <span class="dv">123</span>)</span>
+<span id="cb26-4"><a href="#cb26-4"></a>train_h2o <span class="ot">&lt;-</span> split_h2o[[<span class="dv">1</span>]]</span>
+<span id="cb26-5"><a href="#cb26-5"></a>valid_h2o <span class="ot">&lt;-</span> split_h2o[[<span class="dv">2</span>]]</span>
+<span id="cb26-6"><a href="#cb26-6"></a>test_h2o  <span class="ot">&lt;-</span> <span class="fu">as.h2o</span>(test_trafo_tbl)</span>
+<span id="cb26-7"><a href="#cb26-7"></a></span>
+<span id="cb26-8"><a href="#cb26-8"></a>y <span class="ot">&lt;-</span> <span class="st">"went_on_backorder"</span></span>
+<span id="cb26-9"><a href="#cb26-9"></a>x <span class="ot">&lt;-</span> <span class="fu">setdiff</span>(<span class="fu">names</span>(train_h2o), y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell-output cell-output-stderr">
-<pre><code>#&gt; Warning in h2o.clusterInfo(): 
-#&gt; Your H2O cluster version is (5 months and 20 days) old. There may be a newer version available.
-#&gt; Please download and install the latest version from: https://h2o-release.s3.amazonaws.com/h2o/latest_stable.html</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1"></a>split_h2o <span class="ot">&lt;-</span> <span class="fu">h2o.splitFrame</span>(<span class="fu">as.h2o</span>(train_trafo_tbl), <span class="at">ratios =</span> <span class="fu">c</span>(<span class="dv">3</span><span class="sc">/</span><span class="dv">4</span>), <span class="at">seed =</span> <span class="dv">123</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt; 
-  |                                                                            
-  |                                                                      |   0%
-  |                                                                            
-  |======================================================================| 100%</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1"></a>train_h2o <span class="ot">&lt;-</span> split_h2o[[<span class="dv">1</span>]]</span>
-<span id="cb31-2"><a href="#cb31-2"></a>valid_h2o <span class="ot">&lt;-</span> split_h2o[[<span class="dv">2</span>]]</span>
-<span id="cb31-3"><a href="#cb31-3"></a>test_h2o  <span class="ot">&lt;-</span> <span class="fu">as.h2o</span>(test_trafo_tbl)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt; 
-  |                                                                            
-  |                                                                      |   0%
-  |                                                                            
-  |======================================================================| 100%</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1"></a>y <span class="ot">&lt;-</span> <span class="st">"went_on_backorder"</span></span>
-<span id="cb33-2"><a href="#cb33-2"></a>x <span class="ot">&lt;-</span> <span class="fu">setdiff</span>(<span class="fu">names</span>(train_h2o), y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
+<p>Create AutoML ML Models</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1"></a>automl_models_h2o <span class="ot">&lt;-</span> <span class="fu">h2o.automl</span>(</span>
-<span id="cb34-2"><a href="#cb34-2"></a>  <span class="at">x =</span> x,</span>
-<span id="cb34-3"><a href="#cb34-3"></a>  <span class="at">y =</span> y,</span>
-<span id="cb34-4"><a href="#cb34-4"></a>  <span class="at">training_frame    =</span> train_h2o,</span>
-<span id="cb34-5"><a href="#cb34-5"></a>  <span class="at">validation_frame  =</span> valid_h2o,</span>
-<span id="cb34-6"><a href="#cb34-6"></a>  <span class="at">leaderboard_frame =</span> test_h2o,</span>
-<span id="cb34-7"><a href="#cb34-7"></a>  <span class="at">max_runtime_secs  =</span> <span class="dv">30</span>,</span>
-<span id="cb34-8"><a href="#cb34-8"></a>  <span class="at">nfolds            =</span> <span class="dv">5</span></span>
-<span id="cb34-9"><a href="#cb34-9"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt; 
-  |                                                                            
-  |                                                                      |   0%
-  |                                                                            
-  |===                                                                   |   5%
-#&gt; 12:11:57.127: User specified a validation frame with cross-validation still enabled. Please note that the models will still be validated using cross-validation only, the validation frame will be used to provide purely informative validation metrics on the trained models.
-#&gt; 12:11:57.145: AutoML: XGBoost is not available; skipping it.
-  |                                                                            
-  |===========                                                           |  16%
-  |                                                                            
-  |==================                                                    |  25%
-  |                                                                            
-  |========================                                              |  34%
-  |                                                                            
-  |===============================                                       |  44%
-  |                                                                            
-  |=====================================                                 |  53%
-  |                                                                            
-  |===========================================                           |  62%
-  |                                                                            
-  |==================================================                    |  71%
-  |                                                                            
-  |========================================================              |  80%
-  |                                                                            
-  |==============================================================        |  89%
-  |                                                                            
-  |===================================================================== |  98%
-  |                                                                            
-  |======================================================================| 100%</code></pre>
-</div>
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1"></a>automl_models_h2o <span class="ot">&lt;-</span> <span class="fu">h2o.automl</span>(</span>
+<span id="cb27-2"><a href="#cb27-2"></a>  <span class="at">x =</span> x,</span>
+<span id="cb27-3"><a href="#cb27-3"></a>  <span class="at">y =</span> y,</span>
+<span id="cb27-4"><a href="#cb27-4"></a>  <span class="at">training_frame    =</span> train_h2o,</span>
+<span id="cb27-5"><a href="#cb27-5"></a>  <span class="at">validation_frame  =</span> valid_h2o,</span>
+<span id="cb27-6"><a href="#cb27-6"></a>  <span class="at">leaderboard_frame =</span> test_h2o,</span>
+<span id="cb27-7"><a href="#cb27-7"></a>  <span class="at">max_runtime_secs  =</span> <span class="dv">30</span>,</span>
+<span id="cb27-8"><a href="#cb27-8"></a>  <span class="at">nfolds            =</span> <span class="dv">5</span></span>
+<span id="cb27-9"><a href="#cb27-9"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section><section id="inspect-leaderboard" class="level1" data-number="5"><h1 data-number="5">
 <span class="header-section-number">5</span> Inspect Leaderboard</h1>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1"></a><span class="fu">slotNames</span>(automl_models_h2o)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt; [1] "project_name"   "leader"         "leaderboard"    "event_log"     
-#&gt; [5] "modeling_steps" "training_info"</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1"></a>automl_models_h2o<span class="sc">@</span>leaderboard</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt;                                                  model_id       auc   logloss
-#&gt; 1 StackedEnsemble_BestOfFamily_2_AutoML_1_20240610_121157 0.9516539 0.1660704
-#&gt; 2    StackedEnsemble_AllModels_1_AutoML_1_20240610_121157 0.9513068 0.1655723
-#&gt; 3                          GBM_4_AutoML_1_20240610_121157 0.9490513 0.1690352
-#&gt; 4                          GBM_3_AutoML_1_20240610_121157 0.9467994 0.1714212
-#&gt; 5 StackedEnsemble_BestOfFamily_1_AutoML_1_20240610_121157 0.9466711 0.1716587
-#&gt; 6                          GBM_1_AutoML_1_20240610_121157 0.9464610 0.1715538
-#&gt;       aucpr mean_per_class_error      rmse        mse
-#&gt; 1 0.7414830            0.1540639 0.2219648 0.04926836
-#&gt; 2 0.7410969            0.1597073 0.2222204 0.04938191
-#&gt; 3 0.7353952            0.1540260 0.2238810 0.05012271
-#&gt; 4 0.7225462            0.1487001 0.2249257 0.05059157
-#&gt; 5 0.7235682            0.1599330 0.2269144 0.05149017
-#&gt; 6 0.7245820            0.1574075 0.2265987 0.05134696
-#&gt; 
-#&gt; [11 rows x 7 columns]</code></pre>
-</div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1"></a><span class="fu">slotNames</span>(automl_models_h2o)</span>
+<span id="cb28-2"><a href="#cb28-2"></a>automl_models_h2o<span class="sc">@</span>leaderboard</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section><section id="predict-using-the-leader-model" class="level1" data-number="6"><h1 data-number="6">
 <span class="header-section-number">6</span> Predict using the Leader Model</h1>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1"></a>leader_model <span class="ot">&lt;-</span> automl_models_h2o<span class="sc">@</span>leader</span>
-<span id="cb40-2"><a href="#cb40-2"></a>leader_model</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt; Model Details:
-#&gt; ==============
-#&gt; 
-#&gt; H2OBinomialModel: stackedensemble
-#&gt; Model ID:  StackedEnsemble_BestOfFamily_2_AutoML_1_20240610_121157 
-#&gt; Model Summary for Stacked Ensemble: 
-#&gt;                                     key            value
-#&gt; 1                     Stacking strategy cross_validation
-#&gt; 2  Number of base models (used / total)              2/3
-#&gt; 3      # GBM base models (used / total)              1/1
-#&gt; 4      # DRF base models (used / total)              1/1
-#&gt; 5      # GLM base models (used / total)              0/1
-#&gt; 6                 Metalearner algorithm              GLM
-#&gt; 7    Metalearner fold assignment scheme           Random
-#&gt; 8                    Metalearner nfolds                5
-#&gt; 9               Metalearner fold_column               NA
-#&gt; 10   Custom metalearner hyperparameters             None
-#&gt; 
-#&gt; 
-#&gt; H2OBinomialMetrics: stackedensemble
-#&gt; ** Reported on training data. **
-#&gt; 
-#&gt; MSE:  0.01935031
-#&gt; RMSE:  0.1391054
-#&gt; LogLoss:  0.08091106
-#&gt; Mean Per-Class Error:  0.05061825
-#&gt; AUC:  0.9950679
-#&gt; AUCPR:  0.9736636
-#&gt; Gini:  0.9901358
-#&gt; 
-#&gt; Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
-#&gt;          No  Yes    Error       Rate
-#&gt; No     8648   75 0.008598   =75/8723
-#&gt; Yes     112 1097 0.092639  =112/1209
-#&gt; Totals 8760 1172 0.018828  =187/9932
-#&gt; 
-#&gt; Maximum Metrics: Maximum metrics at their respective thresholds
-#&gt;                         metric threshold       value idx
-#&gt; 1                       max f1  0.459171    0.921462 169
-#&gt; 2                       max f2  0.350089    0.924418 196
-#&gt; 3                 max f0point5  0.540176    0.944151 149
-#&gt; 4                 max accuracy  0.459171    0.981172 169
-#&gt; 5                max precision  0.999952    1.000000   0
-#&gt; 6                   max recall  0.038483    1.000000 326
-#&gt; 7              max specificity  0.999952    1.000000   0
-#&gt; 8             max absolute_mcc  0.459171    0.910910 169
-#&gt; 9   max min_per_class_accuracy  0.242038    0.961952 228
-#&gt; 10 max mean_per_class_accuracy  0.220319    0.962720 235
-#&gt; 11                     max tns  0.999952 8723.000000   0
-#&gt; 12                     max fns  0.999952 1205.000000   0
-#&gt; 13                     max fps  0.000055 8723.000000 399
-#&gt; 14                     max tps  0.038483 1209.000000 326
-#&gt; 15                     max tnr  0.999952    1.000000   0
-#&gt; 16                     max fnr  0.999952    0.996691   0
-#&gt; 17                     max fpr  0.000055    1.000000 399
-#&gt; 18                     max tpr  0.038483    1.000000 326
-#&gt; 
-#&gt; Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
-#&gt; H2OBinomialMetrics: stackedensemble
-#&gt; ** Reported on validation data. **
-#&gt; 
-#&gt; MSE:  0.04647244
-#&gt; RMSE:  0.2155747
-#&gt; LogLoss:  0.1564395
-#&gt; Mean Per-Class Error:  0.1198087
-#&gt; AUC:  0.9627069
-#&gt; AUCPR:  0.777901
-#&gt; Gini:  0.9254138
-#&gt; 
-#&gt; Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
-#&gt;          No Yes    Error       Rate
-#&gt; No     2951 176 0.056284  =176/3127
-#&gt; Yes      77 343 0.183333    =77/420
-#&gt; Totals 3028 519 0.071328  =253/3547
-#&gt; 
-#&gt; Maximum Metrics: Maximum metrics at their respective thresholds
-#&gt;                         metric threshold       value idx
-#&gt; 1                       max f1  0.289528    0.730564 202
-#&gt; 2                       max f2  0.152242    0.792246 253
-#&gt; 3                 max f0point5  0.539731    0.761111 132
-#&gt; 4                 max accuracy  0.539731    0.938822 132
-#&gt; 5                max precision  0.976514    1.000000   0
-#&gt; 6                   max recall  0.010870    1.000000 372
-#&gt; 7              max specificity  0.976514    1.000000   0
-#&gt; 8             max absolute_mcc  0.289528    0.695119 202
-#&gt; 9   max min_per_class_accuracy  0.152242    0.895238 253
-#&gt; 10 max mean_per_class_accuracy  0.103562    0.899119 278
-#&gt; 11                     max tns  0.976514 3127.000000   0
-#&gt; 12                     max fns  0.976514  418.000000   0
-#&gt; 13                     max fps  0.000028 3127.000000 399
-#&gt; 14                     max tps  0.010870  420.000000 372
-#&gt; 15                     max tnr  0.976514    1.000000   0
-#&gt; 16                     max fnr  0.976514    0.995238   0
-#&gt; 17                     max fpr  0.000028    1.000000 399
-#&gt; 18                     max tpr  0.010870    1.000000 372
-#&gt; 
-#&gt; Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
-#&gt; H2OBinomialMetrics: stackedensemble
-#&gt; ** Reported on cross-validation data. **
-#&gt; ** 5-fold cross-validation on training data (Metrics computed for combined holdout predictions) **
-#&gt; 
-#&gt; MSE:  0.05296332
-#&gt; RMSE:  0.2301376
-#&gt; LogLoss:  0.1791549
-#&gt; Mean Per-Class Error:  0.1706844
-#&gt; AUC:  0.9466688
-#&gt; AUCPR:  0.7350996
-#&gt; Gini:  0.8933377
-#&gt; 
-#&gt; Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
-#&gt;          No  Yes    Error        Rate
-#&gt; No     9042  397 0.042060   =397/9439
-#&gt; Yes     390  913 0.299309   =390/1303
-#&gt; Totals 9432 1310 0.073264  =787/10742
-#&gt; 
-#&gt; Maximum Metrics: Maximum metrics at their respective thresholds
-#&gt;                         metric threshold       value idx
-#&gt; 1                       max f1  0.395821    0.698814 185
-#&gt; 2                       max f2  0.141747    0.772324 275
-#&gt; 3                 max f0point5  0.598788    0.723562 122
-#&gt; 4                 max accuracy  0.479060    0.928039 159
-#&gt; 5                max precision  0.984550    1.000000   0
-#&gt; 6                   max recall  0.000028    1.000000 399
-#&gt; 7              max specificity  0.984550    1.000000   0
-#&gt; 8             max absolute_mcc  0.395821    0.657113 185
-#&gt; 9   max min_per_class_accuracy  0.121608    0.880276 286
-#&gt; 10 max mean_per_class_accuracy  0.130258    0.882334 281
-#&gt; 11                     max tns  0.984550 9439.000000   0
-#&gt; 12                     max fns  0.984550 1302.000000   0
-#&gt; 13                     max fps  0.000028 9439.000000 399
-#&gt; 14                     max tps  0.000028 1303.000000 399
-#&gt; 15                     max tnr  0.984550    1.000000   0
-#&gt; 16                     max fnr  0.984550    0.999233   0
-#&gt; 17                     max fpr  0.000028    1.000000 399
-#&gt; 18                     max tpr  0.000028    1.000000 399
-#&gt; 
-#&gt; Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
-#&gt; Cross-Validation Metrics Summary: 
-#&gt;                 mean        sd cv_1_valid cv_2_valid cv_3_valid cv_4_valid
-#&gt; accuracy    0.926172  0.007366   0.933149   0.921743   0.933086   0.916141
-#&gt; auc         0.946699  0.008820   0.952863   0.944614   0.958375   0.936774
-#&gt; err         0.073828  0.007366   0.066851   0.078257   0.066915   0.083859
-#&gt; err_count 158.600000 16.964668 145.000000 158.000000 144.000000 186.000000
-#&gt; f0point5    0.693664  0.045578   0.742245   0.696291   0.710843   0.618796
-#&gt;           cv_5_valid
-#&gt; accuracy    0.926740
-#&gt; auc         0.940868
-#&gt; err         0.073260
-#&gt; err_count 160.000000
-#&gt; f0point5    0.700147
-#&gt; 
-#&gt; ---
-#&gt;                         mean        sd cv_1_valid cv_2_valid cv_3_valid
-#&gt; precision           0.685778  0.058578   0.747212   0.683849   0.710843
-#&gt; r2                  0.502668  0.030895   0.530393   0.505156   0.531097
-#&gt; recall              0.733408  0.025787   0.723022   0.750943   0.710843
-#&gt; residual_deviance 768.429600 49.293755 763.711300 765.357000 691.407000
-#&gt; rmse                0.230040  0.007030   0.229074   0.237539   0.219037
-#&gt; specificity         0.952922  0.012282   0.964040   0.947548   0.962165
-#&gt;                   cv_4_valid cv_5_valid
-#&gt; precision           0.589905   0.697080
-#&gt; r2                  0.457295   0.489398
-#&gt; recall              0.769547   0.712687
-#&gt; residual_deviance 801.930240 819.742500
-#&gt; rmse                0.230095   0.234452
-#&gt; specificity         0.934177   0.956681</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1"></a><span class="co"># predictions &lt;- h2o.predict(leader_model, newdata = test_h2o)</span></span>
-<span id="cb42-2"><a href="#cb42-2"></a><span class="co"># predictions</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1"></a>leader_model <span class="ot">&lt;-</span> automl_models_h2o<span class="sc">@</span>leader</span>
+<span id="cb29-2"><a href="#cb29-2"></a>leader_model</span>
+<span id="cb29-3"><a href="#cb29-3"></a></span>
+<span id="cb29-4"><a href="#cb29-4"></a>predictions <span class="ot">&lt;-</span> <span class="fu">h2o.predict</span>(leader_model, <span class="at">newdata =</span> test_h2o)</span>
+<span id="cb29-5"><a href="#cb29-5"></a>predictions</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section><section id="save-model" class="level1" data-number="7"><h1 data-number="7">
 <span class="header-section-number">7</span> Save Model</h1>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1"></a><span class="fu">h2o.init</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt;  Connection successful!
-#&gt; 
-#&gt; R is connected to the H2O cluster: 
-#&gt;     H2O cluster uptime:         3 minutes 34 seconds 
-#&gt;     H2O cluster timezone:       Europe/Berlin 
-#&gt;     H2O data parsing timezone:  UTC 
-#&gt;     H2O cluster version:        3.44.0.3 
-#&gt;     H2O cluster version age:    5 months and 20 days 
-#&gt;     H2O cluster name:           H2O_started_from_R_MaximilianMuza_weq459 
-#&gt;     H2O cluster total nodes:    1 
-#&gt;     H2O cluster total memory:   2.91 GB 
-#&gt;     H2O cluster total cores:    16 
-#&gt;     H2O cluster allowed cores:  16 
-#&gt;     H2O cluster healthy:        TRUE 
-#&gt;     H2O Connection ip:          localhost 
-#&gt;     H2O Connection port:        54321 
-#&gt;     H2O Connection proxy:       NA 
-#&gt;     H2O Internal Security:      FALSE 
-#&gt;     R Version:                  R version 4.4.0 (2024-04-24 ucrt)</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>#&gt; Warning in h2o.clusterInfo(): 
-#&gt; Your H2O cluster version is (5 months and 20 days) old. There may be a newer version available.
-#&gt; Please download and install the latest version from: https://h2o-release.s3.amazonaws.com/h2o/latest_stable.html</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1"></a><span class="fu">h2o.getModel</span>(leader_model<span class="sc">@</span>model_id) <span class="sc">%&gt;%</span></span>
-<span id="cb46-2"><a href="#cb46-2"></a>  <span class="fu">h2o.saveModel</span>(<span class="at">path =</span> models_dir)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt; [1] "C:\\Users\\MaximilianMuza\\Documents\\Projects\\ss24-bdml-MaximilianMuza\\models\\StackedEnsemble_BestOfFamily_2_AutoML_1_20240610_121157"</code></pre>
-</div>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1"></a><span class="fu">h2o.getModel</span>(leader_model<span class="sc">@</span>model_id) <span class="sc">%&gt;%</span></span>
+<span id="cb30-2"><a href="#cb30-2"></a>  <span class="fu">h2o.saveModel</span>(<span class="at">path =</span> models_dir)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 
 
