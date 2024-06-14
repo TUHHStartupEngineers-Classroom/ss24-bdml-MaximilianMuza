@@ -7,14 +7,6 @@ params:
   models_dir: "../../models/"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-    echo = TRUE,
-    message = FALSE,
-    warning = FALSE
-    )
-```
-
 Load the absolute path to the data directory.
 
 ```{r}
@@ -55,13 +47,13 @@ product_recipe_obj <- recipe(went_on_backorder ~., data = train_tbl) %>%
     prep()
 product_recipe_obj
 
-train_trafo_tbl <- bake(product_recipe_obj, new_data = train_tbl)
+train_trafo_tbl  <- bake(product_recipe_obj, new_data = train_tbl)
 test_trafo_tbl  <- bake(product_recipe_obj, new_data = test_tbl)
 ```
 
 # Run H2O
 Init H2O and create H2O test and train datasets
-```{r}
+```{r, eval=FALSE}
 h2o.init()
 
 split_h2o <- h2o.splitFrame(as.h2o(train_trafo_tbl), ratios = c(3/4), seed = 123)
@@ -75,7 +67,7 @@ x <- setdiff(names(train_h2o), y)
 
 
 Create AutoML ML Models
-```{r}
+```{r, eval=FALSE}
 automl_models_h2o <- h2o.automl(
   x = x,
   y = y,
@@ -88,13 +80,13 @@ automl_models_h2o <- h2o.automl(
 ```
 
 # Inspect Leaderboard
-```{r}
+```{r, eval=FALSE}
 slotNames(automl_models_h2o)
 automl_models_h2o@leaderboard
 ```
 
 # Predict using the Leader Model
-```{r}
+```{r, eval=FALSE}
 leader_model <- automl_models_h2o@leader
 leader_model
 
@@ -103,7 +95,7 @@ predictions
 ```
 
 # Save Model
-```{r}
-# h2o.getModel(leader_model@model_id) %>%
-  # h2o.saveModel(path = models_dir)
+```{r, eval=FALSE}
+h2o.getModel(leader_model@model_id) %>%
+  h2o.saveModel(path = models_dir)
 ```

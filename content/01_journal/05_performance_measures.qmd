@@ -10,73 +10,14 @@ library(cowplot)
 library(glue)
 ```
 
-# Source Automated ML h2O
-```{r}
-#source("04_automated_ml_h2o_2.R")
-
-data_dir <- "../../data/" #"data/" # use this dir if running from root dir
-models_dir <- "../../models/" #"models/" # use this dir if running from root dir
-
-# Load libraries
-library(h2o)
-library(tidyverse)
-library(readxl)
-library(recipes)
-library(rsample)
-
-# Load data
-product_backorders_tbl <- read_csv(file = file.path(data_dir, "product_backorders.txt"))
-product_backorders_tbl
-
-# Create training and test dataset
-set.seed(123)
-split <- initial_split(product_backorders_tbl, prop = 3/4)
-
-train_tbl <- training(split)
-test_tbl  <- testing(split)
-
-# Create product recipe
-product_recipe_obj <- recipe(went_on_backorder ~., data = train_tbl) %>%
-  step_zv(all_predictors()) %>%
-  step_dummy(all_nominal(), -all_outcomes()) %>%
-  # step_dummy(all_nominal(), -all_outcomes(), one_hot = TRUE) %>%
-  prep()
-product_recipe_obj
-
-# Transform test/train dataset based on recipe
-train_trafo_tbl <- bake(product_recipe_obj, new_data = train_tbl)
-test_trafo_tbl  <- bake(product_recipe_obj, new_data = test_tbl)
-
-# Init h2O
-h2o.init()
-
-# Create h2O test/train datasets
-train_h2o <- h2o.splitFrame(as.h2o(train_trafo_tbl), ratios = c(3/4), seed = 123)[[1]]
-valid_h2o <- h2o.splitFrame(as.h2o(train_trafo_tbl), ratios = c(3/4), seed = 123)[[2]]
-test_h2o  <- as.h2o(test_trafo_tbl)
-
-y <- "went_on_backorder"
-x <- setdiff(names(train_h2o), y)
-
-# Build AutoML models
-automl_models_h2o <- h2o.automl(
-  x = x,
-  y = y,
-  training_frame    = train_h2o,
-  validation_frame  = valid_h2o,
-  leaderboard_frame = test_h2o,
-  max_runtime_secs  = 30,
-  nfolds            = 5
-)
-
-# Display leaderboard
-slotNames(automl_models_h2o)
-automl_models_h2o@leaderboard
+# Source Automated ML h2O Code
+```{r, eval=FALSE}
+source("04_automated_ml_h2o_2.R")
 ```
 
 # 1. Leaderboard Visualization
 Visualize the leaderboard to see how different models perform according to the logloss and auc performance metrics.
-```{r}
+```{r, eval=FALSE}
 # Transform AutoML leaderboard
 automl_models_h2o@leaderboard %>% 
   as_tibble() %>% 
@@ -150,10 +91,11 @@ plot_h2o_leaderboard <- function(h2o_leaderboard, order_by = c("auc", "logloss")
 # Plot leaderboard
 plot_h2o_leaderboard(automl_models_h2o@leaderboard, order_by = "auc")
 ```
+![Leaderboard Visualization](../../assets/img/leaderboard_visualization.png)
 
 # 2. Model Hyperparameter Tuning with Grid Search
 ML models have hyperparameter which can be further tuned to improve the ML model performance. For a stacked ensemble model this may be for example the number of trees and max_depth of the trees. Grid search is one potential way to determine the best performing set of hyperparameters. Thus, grid search is applied below for the best performing model with default hyperparameters.
-```{r}
+```{r, eval=FALSE}
 model <- automl_models_h2o@leader
 model
 
@@ -184,7 +126,7 @@ h2o.getGrid(grid_id = "grid", sort_by = "auc", decreasing = TRUE)
 
 # 3. Visualization of Trade-off between Precision, Recall and Optimal Threshold
 Here the trade-off between the precision and the recall metric is visualized. As well as the optimal threshold between precision and recall is highlighted in the same figure.
-```{r}
+```{r, eval=FALSE}
 performance_h2o <- h2o.performance(best_model, newdata = test_h2o)
 
 performance_tbl <- performance_h2o %>%
@@ -229,10 +171,11 @@ performance_tbl %>%
   labs(title = "Precision vs Recall", y = "value") +
   theme_new
 ```
+![Trade-off Precision-Recall](../../assets/img/trade_off_precision_recall.png)
 
 # 4. ROC Plot
 Here the ROC plot is visualized and plotted. The ROC plot is a graphical representation used to evalute the performance of a binary classification model. It illustrates the trade-offs between the true positive rate (TPR) and the false positive rate (FPR).
-```{r}
+```{r, eval=FALSE}
 path <- "models/StackedEnsemble_AllModels_1_AutoML_1_20240612_120110"
 
 load_model_performance_metrics <- function(path, test_tbl) {
@@ -278,10 +221,11 @@ model_metrics_tbl %>%
     subtitle = "Performance of 3 Top Performing Models"
   )
 ```
+![ROC Plot](../../assets/img/ROC_Plot.png)
 
 # 5. Precision vs Recall Plot
 This plot displays the precision against the recall. The recall is being displayed on the x-axis and the precision on the y-axis.
-```{r}
+```{r, eval=FALSE}
 load_model_performance_metrics <- function(path, test_tbl) {
   
   model_h2o <- h2o.loadModel(path)
@@ -319,9 +263,10 @@ model_metrics_tbl %>%
     subtitle = "Performance of 3 Top Performing Models"
   )
 ```
+![Precision vs. Recall](../../assets/img/precision_recall_plot_2.png)
 
 # 6. Gain Plot
-```{r}
+```{r, eval=FALSE}
 gain_lift_tbl <- performance_h2o %>%
   h2o.gainsLift() %>%
   as.tibble()
@@ -345,9 +290,10 @@ gain_transformed_tbl %>%
   ) +
   theme_new
 ```
+![Gain Plot](../../assets/img/gain_plot)
 
 # 7. Lift Plot
-```{r}
+```{r, eval=FALSE}
 lift_transformed_tbl <- gain_lift_tbl %>% 
   select(group, cumulative_data_fraction, cumulative_capture_rate, cumulative_lift) %>%
   select(-contains("capture")) %>%
@@ -365,9 +311,10 @@ lift_transformed_tbl %>%
   ) +
   theme_new
 ```
+![Lift Plot](../../assets/img/lift_chart.png)
 
 # 8. Dashboard with cowplot
-```{r}
+```{r, eval=FALSE}
 h2o_leaderboard <- automl_models_h2o@leaderboard
 newdata <- test_tbl
 order_by <- "auc"
@@ -553,3 +500,4 @@ automl_models_h2o@leaderboard %>%
   plot_h2o_performance(newdata = test_tbl, order_by = "logloss", 
                        size = 0.5, max_models = 4)
 ```
+![Combined Plots](../../assets/img/combined_plots.png)
