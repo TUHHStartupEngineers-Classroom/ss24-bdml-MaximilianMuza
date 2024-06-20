@@ -9,7 +9,7 @@ library(GGally)
 library(tidyquant)
 library(lime)
 library(tools)
-
+library(ggplot2)
 # Data
 
 # Load data definitions
@@ -239,3 +239,29 @@ custom_feature_plot <- function(explanation, ncol) {
 }
 
 custom_feature_plot(explanation = explanation, ncol=4)
+
+### Code plot explanation method
+custom_explanation_plot <- function(explanation) {
+  custom_margin = 30
+  
+  plot <- ggplot(explanation, aes_(~case, ~feature_desc)) +
+    geom_tile(aes_(fill = ~feature_weight)) +
+    scale_x_discrete('Case', expand = c(0, 0)) +
+    scale_y_discrete('Feature', expand = c(0, 0)) +
+    scale_fill_gradient2('Feature Weight', low = 'red', mid = 'white', high = 'blue') +
+    theme_minimal() +
+    theme(
+      panel.border = element_rect(fill = NA, colour = 'black', size = 1),
+      panel.grid = element_blank(),
+      plot.margin = margin(custom_margin, custom_margin, custom_margin, custom_margin),
+      legend.position = 'bottom',
+    )
+  
+  # Create subplots if for both label yes and no
+  if (is.null(explanation$label)) {
+    plot
+  } else {
+    plot + facet_wrap(~label)
+  }
+}
+custom_explanation_plot(explanation = explanation)

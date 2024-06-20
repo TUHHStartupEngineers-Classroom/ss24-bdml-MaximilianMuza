@@ -1,7 +1,6 @@
 ---
 title: "06 Black-Box Models with LIME"
 author: "Maximilian Muza"
-date: "6/6/2024"
 params:
   data_dir: "../../data/"
   models_dir: "../../models/"
@@ -25,13 +24,16 @@ library(skimr)
 library(GGally)
 library(tidyquant)
 library(lime)
+library(tools)
 ```
 
 # Data
 
 Load data definitions
 ```{r}
-definitions_raw_tbl   <- read_excel(file.path(data_dir, "data_definitions.xlsx"), sheet = 1, col_names = FALSE)
+full_path <- file.path(data_dir, "data_definitions.xlsx")
+print(full_path)
+definitions_raw_tbl   <- read_excel(full_path, sheet = 1, col_names = FALSE)
 definitions_raw_tbl |> as_tibble() |> print()
 ```
 
@@ -106,7 +108,7 @@ test_tbl  <- bake(recipe_obj, new_data = test_tbl)
 ```{r}
 h2o.init()
 
-automl_leader <- h2o.loadModel("C:/Users/MaximilianMuza/Documents/Projects/ss24-bdml-MaximilianMuza/models/StackedEnsemble_BestOfFamily_2_AutoML_1_20240614_153006")
+automl_leader <- h2o.loadModel("C:/Users/MaximilianMuza/Documents/Projects/ss24-bdml-MaximilianMuza/models/StackedEnsemble_BestOfFamily_2_AutoML_1_20240619_143112")
 automl_leader
 
 predictions_tbl <- automl_leader %>% 
@@ -117,4 +119,201 @@ predictions_tbl <- automl_leader %>%
             select(Attrition, EmployeeNumber)
     )
 predictions_tbl
+```
+
+# Explainer Object
+```{r}
+explainer <- train_tbl %>%
+  select(-Attrition) %>%
+  lime(
+    model           = automl_leader,
+    bin_continuous  = TRUE,
+    n_bins          = 4,
+    quantile_bins   = TRUE
+  )
+explainer
+```
+
+# Single Explanation Object + Plot
+```{r, fig.width=16, fig.height=10}
+# Use only one item
+test_tbl %>%
+  slice(1) %>%
+  glimpse()
+
+# Create explanation object
+explanation <- test_tbl %>%
+  slice(1) %>%
+  select(-Attrition) %>%
+  lime::explain(
+    explainer = explainer,
+    # Because it is a binary classification model: 1
+    n_labels   = 1,
+    # number of features to be returned
+    n_features = 8,
+    # number of localized linear models
+    n_permutations = 5000,
+    # Let's start with 1
+    kernel_width   = 4
+  )
+explanation
+
+# Select relevant columns
+explanation %>%
+  as.tibble() %>%
+  select(feature:prediction) 
+
+# Plot features
+g <- plot_features(explanation = explanation, ncol = 1)
+g
+```
+
+# Multiple Explanation Object + Plot
+```{r}
+# Create multiple explanation object
+explanation <- test_tbl %>%
+  slice(1:20) %>%
+  select(-Attrition) %>%
+  lime::explain(
+    explainer = explainer,
+    n_labels   = 1,
+    n_features = 8,
+    n_permutations = 5000,
+    kernel_width   = 0.5
+  )
+explanation %>%
+  as.tibble()
+
+# Plot the features
+# It can be seen that this plot is quite big and has lots of information
+plot_features(explanation, ncol = 4)
+
+# Plot the explanations
+# Plot is more condensed than the previous one, and preferably used
+plot_explanations(explanation)
+```
+
+### Code plot features method
+```{r, fig.width=16, fig.height=10}
+# Create a label formatter that removes underscores and make label title casing
+custom_labeller <- function(labels, multi_line = TRUE, sep = ': ') {
+  gsub("_", " ", names(labels))
+  names(labels) <- tools::toTitleCase(
+    gsub("_", " ", names(labels))
+  )
+  label_both(labels, multi_line, sep)
+}
+
+# Here the feature plot method
+custom_feature_plot <- function(explanation, ncol) {
+  
+  # Define color palette
+  colors = c(
+    "Supports" = "blue",
+    "Contradicts" = "red"
+  )
+  
+  # Define fill color column that specifies the color of the row in the plot
+  # based on its key
+  explanation <- explanation %>%
+    mutate(
+      fill_color = ifelse(feature_weight > 0, "Supports", "Contradicts")
+    )
+  
+  # Create description by combining case and label, and also
+  # append feature description
+  explanation$description <- with(explanation, factor(
+    paste0(case, '_', label, format(feature_desc)),
+    levels = paste0(case, '_', label, format(feature_desc))[order(abs(feature_weight))]
+  ))
+  
+  # Format model R-squared and label probability to two decimal places
+  explanation$explanation_fit <- format(explanation$model_r2, digits = 2)
+  explanation$probability <- format(explanation$label_prob, digits = 2)
+  
+  # Convert label to a factor and order based on label probability in decreasing order
+  explanation$label <- factor(explanation$label, 
+                              levels = unique(explanation$label[order(explanation$label_prob, decreasing = TRUE)]))
+  
+  # Create plot
+  ggplot(explanation) +
+    
+    # Create subplots based on the ncol parameter
+    facet_wrap(
+      ~ case + label + probability + explanation_fit,
+      labeller = custom_labeller,
+      scales = 'free_y',
+      ncol = ncol
+    ) +
+    
+    # Create column plots (similar to bar plot) for each case with feture weight
+    # as x-value
+    # Feature description on y axis
+    # Color of bar is defined based on the respective fill_color value
+    geom_col(aes(
+      x = feature_weight,
+      y = reorder(feature_desc, abs(feature_weight)),
+      fill = fill_color
+    )) +
+    
+    # Define x,y axis and title
+    labs(
+      title = "Feature Importance",
+      x = "Feature Weight",
+      y = "Feature Description",
+      fill = "Support vs Contradiction"
+    ) +
+    theme_minimal() +
+    theme(
+      panel.background = element_rect(fill = "white", colour = "white"),
+      plot.background = element_rect(fill = "white", colour = "white")
+    )
+}
+
+# Plot for the multiple explanation object
+custom_feature_plot(explanation = explanation, ncol=4)
+```
+
+### Code plot explanations method
+```{r}
+# Here the explanation plot method
+custom_explanation_plot <- function(explanation) {
+  # Set custom margin value
+  custom_margin = 30
+  
+  # Create plot
+  plot <- ggplot(explanation, aes_(~case, ~feature_desc)) +
+    
+    # Create tiles in plot with feature weight 
+    geom_tile(aes_(fill = ~feature_weight)) +
+    
+    # Define discrete x and y axis
+    scale_x_discrete('Case', expand = c(0, 0)) +
+    scale_y_discrete('Feature', expand = c(0, 0)) +
+    
+    # Create color gradient from red to blue based on the value of feature weight
+    scale_fill_gradient2('Feature Weight', low = 'red', mid = 'white', high = 'blue') +
+    
+    # Define custom styling such as colors, border, and margin
+    theme_minimal() +
+    theme(
+      panel.border = element_rect(fill = NA, colour = 'grey60', size = 1),
+      panel.grid = element_blank(),
+      panel.background = element_rect(fill = "white", colour = "white"),
+      plot.background = element_rect(fill = "white", colour = "white"),
+      plot.margin = margin(custom_margin, custom_margin, custom_margin, custom_margin),
+      legend.position = 'bottom',
+    )
+
+  # Create subplots if for both label yes and no
+  if (is.null(explanation$label)) {
+    plot
+  } else {
+    plot + facet_wrap(~label)
+  }
+
+}
+
+# Call custom explanation plot with current explanation object as parameter
+custom_explanation_plot(explanation = explanation)
 ```

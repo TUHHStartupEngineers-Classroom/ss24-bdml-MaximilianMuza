@@ -5,7 +5,6 @@
 <meta name="generator" content="quarto-1.4.555">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <meta name="author" content="Maximilian Muza">
-<meta name="dcterms.date" content="2024-06-06">
 <title>MyLabJournal - 06 Black-Box Models with LIME</title>
 <style>
 code{white-space: pre-wrap;}
@@ -73,7 +72,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../../site_libs/bootstrap/bootstrap-dark.min.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark"><script id="quarto-search-options" type="application/json">{
+<link href="../../site_libs/bootstrap/bootstrap-dark.min.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet"><script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
   "collapse-after": 3,
@@ -166,8 +168,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    
   <ul class="collapse">
 <li><a href="#libraries" id="toc-libraries" class="nav-link active" data-scroll-target="#libraries"><span class="header-section-number">1</span> Libraries</a></li>
-  <li><a href="#load-data-definitions" id="toc-load-data-definitions" class="nav-link" data-scroll-target="#load-data-definitions"><span class="header-section-number">2</span> Load Data Definitions</a></li>
-  <li><a href="#load-employee-attrition" id="toc-load-employee-attrition" class="nav-link" data-scroll-target="#load-employee-attrition"><span class="header-section-number">3</span> Load Employee Attrition</a></li>
+  <li><a href="#data" id="toc-data" class="nav-link" data-scroll-target="#data"><span class="header-section-number">2</span> Data</a></li>
+  <li><a href="#ml-preprocessing-recipe" id="toc-ml-preprocessing-recipe" class="nav-link" data-scroll-target="#ml-preprocessing-recipe"><span class="header-section-number">3</span> ML Preprocessing Recipe</a></li>
+  <li><a href="#h2o-model" id="toc-h2o-model" class="nav-link" data-scroll-target="#h2o-model"><span class="header-section-number">4</span> H2O Model</a></li>
+  <li><a href="#explainer-object" id="toc-explainer-object" class="nav-link" data-scroll-target="#explainer-object"><span class="header-section-number">5</span> Explainer Object</a></li>
+  <li><a href="#single-explanation-object-plot" id="toc-single-explanation-object-plot" class="nav-link" data-scroll-target="#single-explanation-object-plot"><span class="header-section-number">6</span> Single Explanation Object + Plot</a></li>
+  <li><a href="#multiple-explanation-object-plot" id="toc-multiple-explanation-object-plot" class="nav-link" data-scroll-target="#multiple-explanation-object-plot"><span class="header-section-number">7</span> Multiple Explanation Object + Plot</a></li>
   </ul></nav>
     </div>
 <!-- main -->
@@ -186,12 +192,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           </div>
   </div>
     
-    <div>
-    <div class="quarto-title-meta-heading">Published</div>
-    <div class="quarto-title-meta-contents">
-      <p class="date">June 6, 2024</p>
-    </div>
-  </div>
   
     
   </div>
@@ -206,91 +206,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="libraries" class="level1" data-number="1"><h1 data-number="1">
 <span class="header-section-number">1</span> Libraries</h1>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a><span class="fu">library</span>(h2o)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>#&gt; 
-#&gt; ----------------------------------------------------------------------
-#&gt; 
-#&gt; Your next step is to start H2O:
-#&gt;     &gt; h2o.init()
-#&gt; 
-#&gt; For H2O package documentation, ask for help:
-#&gt;     &gt; ??h2o
-#&gt; 
-#&gt; After starting H2O, you can use the Web UI at http://localhost:54321
-#&gt; For more information visit https://docs.h2o.ai
-#&gt; 
-#&gt; ----------------------------------------------------------------------</code></pre>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a><span class="fu">library</span>(h2o)</span>
+<span id="cb2-2"><a href="#cb2-2"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb2-3"><a href="#cb2-3"></a><span class="fu">library</span>(readxl)</span>
+<span id="cb2-4"><a href="#cb2-4"></a><span class="fu">library</span>(recipes)</span>
+<span id="cb2-5"><a href="#cb2-5"></a><span class="fu">library</span>(rsample)</span>
+<span id="cb2-6"><a href="#cb2-6"></a><span class="fu">library</span>(skimr)</span>
+<span id="cb2-7"><a href="#cb2-7"></a><span class="fu">library</span>(GGally)</span>
+<span id="cb2-8"><a href="#cb2-8"></a><span class="fu">library</span>(tidyquant)</span>
+<span id="cb2-9"><a href="#cb2-9"></a><span class="fu">library</span>(lime)</span>
+<span id="cb2-10"><a href="#cb2-10"></a><span class="fu">library</span>(tools)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell-output cell-output-stderr">
-<pre><code>#&gt; 
-#&gt; Attaching package: 'h2o'</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>#&gt; The following objects are masked from 'package:stats':
-#&gt; 
-#&gt;     cor, sd, var</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>#&gt; The following objects are masked from 'package:base':
-#&gt; 
-#&gt;     %*%, %in%, &amp;&amp;, ||, apply, as.factor, as.numeric, colnames,
-#&gt;     colnames&lt;-, ifelse, is.character, is.factor, is.numeric, log,
-#&gt;     log10, log1p, log2, round, signif, trunc</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1"></a><span class="fu">library</span>(tidyverse)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>#&gt; ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
-#&gt; ✔ dplyr     1.1.4     ✔ readr     2.1.5
-#&gt; ✔ forcats   1.0.0     ✔ stringr   1.5.1
-#&gt; ✔ ggplot2   3.5.1     ✔ tibble    3.2.1
-#&gt; ✔ lubridate 1.9.3     ✔ tidyr     1.3.1
-#&gt; ✔ purrr     1.0.2</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>#&gt; ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-#&gt; ✖ lubridate::day()   masks h2o::day()
-#&gt; ✖ dplyr::filter()    masks stats::filter()
-#&gt; ✖ lubridate::hour()  masks h2o::hour()
-#&gt; ✖ dplyr::lag()       masks stats::lag()
-#&gt; ✖ lubridate::month() masks h2o::month()
-#&gt; ✖ lubridate::week()  masks h2o::week()
-#&gt; ✖ lubridate::year()  masks h2o::year()
-#&gt; ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1"></a><span class="fu">library</span>(readxl)</span>
-<span id="cb10-2"><a href="#cb10-2"></a><span class="fu">library</span>(recipes)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>#&gt; 
-#&gt; Attaching package: 'recipes'
-#&gt; 
-#&gt; The following object is masked from 'package:stringr':
-#&gt; 
-#&gt;     fixed
-#&gt; 
-#&gt; The following object is masked from 'package:stats':
-#&gt; 
-#&gt;     step</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1"></a><span class="fu">library</span>(rsample)</span>
-<span id="cb12-2"><a href="#cb12-2"></a><span class="fu">library</span>(skimr)</span>
-<span id="cb12-3"><a href="#cb12-3"></a><span class="fu">library</span>(GGally)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>#&gt; Registered S3 method overwritten by 'GGally':
-#&gt;   method from   
-#&gt;   +.gg   ggplot2</code></pre>
-</div>
-</div>
-</section><section id="load-data-definitions" class="level1" data-number="2"><h1 data-number="2">
-<span class="header-section-number">2</span> Load Data Definitions</h1>
+</section><section id="data" class="level1" data-number="2"><h1 data-number="2">
+<span class="header-section-number">2</span> Data</h1>
+<p>Load data definitions</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1"></a>definitions_raw_tbl   <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(<span class="fu">file.path</span>(data_dir, <span class="st">"data_definitions.xlsx"</span>), <span class="at">sheet =</span> <span class="dv">1</span>, <span class="at">col_names =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a>full_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(data_dir, <span class="st">"data_definitions.xlsx"</span>)</span>
+<span id="cb3-2"><a href="#cb3-2"></a><span class="fu">print</span>(full_path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; [1] "../../data//data_definitions.xlsx"</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1"></a>definitions_raw_tbl   <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(full_path, <span class="at">sheet =</span> <span class="dv">1</span>, <span class="at">col_names =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>#&gt; New names:
 #&gt; • `` -&gt; `...1`
 #&gt; • `` -&gt; `...2`</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1"></a>definitions_raw_tbl <span class="sc">|&gt;</span> <span class="fu">as_tibble</span>() <span class="sc">|&gt;</span> <span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1"></a>definitions_raw_tbl <span class="sc">|&gt;</span> <span class="fu">as_tibble</span>() <span class="sc">|&gt;</span> <span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>#&gt; # A tibble: 35 × 2
 #&gt;    ...1                    ...2             
@@ -308,10 +250,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 #&gt; # ℹ 25 more rows</code></pre>
 </div>
 </div>
-</section><section id="load-employee-attrition" class="level1" data-number="3"><h1 data-number="3">
-<span class="header-section-number">3</span> Load Employee Attrition</h1>
+<p>Load employee attrition</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1"></a>employee_attrition_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">file.path</span>(data_dir, <span class="st">"datasets-1067-1925-WA_Fn-UseC_-HR-Employee-Attrition.txt"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1"></a>employee_attrition_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">file.path</span>(data_dir, <span class="st">"datasets-1067-1925-WA_Fn-UseC_-HR-Employee-Attrition.txt"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>#&gt; Rows: 1470 Columns: 35
 #&gt; ── Column specification ────────────────────────────────────────────────────────
@@ -322,7 +263,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 #&gt; ℹ Use `spec()` to retrieve the full column specification for this data.
 #&gt; ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1"></a>employee_attrition_tbl <span class="sc">|&gt;</span> <span class="fu">as_tibble</span>() <span class="sc">|&gt;</span> <span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1"></a>employee_attrition_tbl <span class="sc">|&gt;</span> <span class="fu">as_tibble</span>() <span class="sc">|&gt;</span> <span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>#&gt; # A tibble: 1,470 × 35
 #&gt;      Age Attrition BusinessTravel    DailyRate Department       DistanceFromHome
@@ -346,9 +287,1137 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 #&gt; #   Over18 &lt;chr&gt;, OverTime &lt;chr&gt;, PercentSalaryHike &lt;dbl&gt;, …</code></pre>
 </div>
 </div>
+<p>Make HR data readable</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1"></a>process_hr_data_readable <span class="ot">&lt;-</span> <span class="cf">function</span>(data, definitions_tbl) {</span>
+<span id="cb13-2"><a href="#cb13-2"></a>  </span>
+<span id="cb13-3"><a href="#cb13-3"></a>  definitions_list <span class="ot">&lt;-</span> definitions_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb13-4"><a href="#cb13-4"></a>    <span class="fu">fill</span>(...<span class="dv">1</span>, <span class="at">.direction =</span> <span class="st">"down"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-5"><a href="#cb13-5"></a>    <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(...<span class="dv">2</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-6"><a href="#cb13-6"></a>    <span class="fu">separate</span>(...<span class="dv">2</span>, <span class="at">into =</span> <span class="fu">c</span>(<span class="st">"key"</span>, <span class="st">"value"</span>), <span class="at">sep =</span> <span class="st">" '"</span>, <span class="at">remove =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-7"><a href="#cb13-7"></a>    <span class="fu">rename</span>(<span class="at">column_name =</span> ...<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-8"><a href="#cb13-8"></a>    <span class="fu">mutate</span>(<span class="at">key =</span> <span class="fu">as.numeric</span>(key)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-9"><a href="#cb13-9"></a>    <span class="fu">mutate</span>(<span class="at">value =</span> value <span class="sc">%&gt;%</span> <span class="fu">str_replace</span>(<span class="at">pattern =</span> <span class="st">"'"</span>, <span class="at">replacement =</span> <span class="st">""</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-10"><a href="#cb13-10"></a>    <span class="fu">split</span>(.<span class="sc">$</span>column_name) <span class="sc">%&gt;%</span></span>
+<span id="cb13-11"><a href="#cb13-11"></a>    <span class="fu">map</span>(<span class="sc">~</span> <span class="fu">select</span>(., <span class="sc">-</span>column_name)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-12"><a href="#cb13-12"></a>    <span class="fu">map</span>(<span class="sc">~</span> <span class="fu">mutate</span>(., <span class="at">value =</span> <span class="fu">as_factor</span>(value))) </span>
+<span id="cb13-13"><a href="#cb13-13"></a>  </span>
+<span id="cb13-14"><a href="#cb13-14"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(definitions_list)) {</span>
+<span id="cb13-15"><a href="#cb13-15"></a>    list_name <span class="ot">&lt;-</span> <span class="fu">names</span>(definitions_list)[i]</span>
+<span id="cb13-16"><a href="#cb13-16"></a>    <span class="fu">colnames</span>(definitions_list[[i]]) <span class="ot">&lt;-</span> <span class="fu">c</span>(list_name, <span class="fu">paste0</span>(list_name, <span class="st">"_value"</span>))</span>
+<span id="cb13-17"><a href="#cb13-17"></a>  }</span>
+<span id="cb13-18"><a href="#cb13-18"></a>  </span>
+<span id="cb13-19"><a href="#cb13-19"></a>  data_merged_tbl <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">HR_Data =</span> data) <span class="sc">%&gt;%</span></span>
+<span id="cb13-20"><a href="#cb13-20"></a>    <span class="fu">append</span>(definitions_list, <span class="at">after =</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-21"><a href="#cb13-21"></a>    <span class="fu">reduce</span>(left_join) <span class="sc">%&gt;%</span></span>
+<span id="cb13-22"><a href="#cb13-22"></a>    <span class="fu">select</span>(<span class="sc">-</span><span class="fu">one_of</span>(<span class="fu">names</span>(definitions_list))) <span class="sc">%&gt;%</span></span>
+<span id="cb13-23"><a href="#cb13-23"></a>    <span class="fu">set_names</span>(<span class="fu">str_replace_all</span>(<span class="fu">names</span>(.), <span class="at">pattern =</span> <span class="st">"_value"</span>, </span>
+<span id="cb13-24"><a href="#cb13-24"></a>                              <span class="at">replacement =</span> <span class="st">""</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-25"><a href="#cb13-25"></a>    <span class="fu">select</span>(<span class="fu">sort</span>(<span class="fu">names</span>(.))) <span class="sc">%&gt;%</span></span>
+<span id="cb13-26"><a href="#cb13-26"></a>    <span class="fu">mutate_if</span>(is.character, as.factor) <span class="sc">%&gt;%</span></span>
+<span id="cb13-27"><a href="#cb13-27"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb13-28"><a href="#cb13-28"></a>     </span>
+<span id="cb13-29"><a href="#cb13-29"></a>    )</span>
+<span id="cb13-30"><a href="#cb13-30"></a>  </span>
+<span id="cb13-31"><a href="#cb13-31"></a>  <span class="fu">return</span>(data_merged_tbl)</span>
+<span id="cb13-32"><a href="#cb13-32"></a>  </span>
+<span id="cb13-33"><a href="#cb13-33"></a>}</span>
+<span id="cb13-34"><a href="#cb13-34"></a></span>
+<span id="cb13-35"><a href="#cb13-35"></a>employee_attrition_readable_tbl <span class="ot">&lt;-</span> <span class="fu">process_hr_data_readable</span>(employee_attrition_tbl, definitions_raw_tbl)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; Joining with `by = join_by(Education)`
+#&gt; Joining with `by = join_by(EnvironmentSatisfaction)`
+#&gt; Joining with `by = join_by(JobInvolvement)`
+#&gt; Joining with `by = join_by(JobSatisfaction)`
+#&gt; Joining with `by = join_by(PerformanceRating)`
+#&gt; Joining with `by = join_by(RelationshipSatisfaction)`
+#&gt; Joining with `by = join_by(WorkLifeBalance)`</code></pre>
+</div>
+</div>
+<p>Create training and testing dataset (Hold-out method)</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1"></a><span class="fu">set.seed</span>(<span class="dv">1234</span>)</span>
+<span id="cb15-2"><a href="#cb15-2"></a>split <span class="ot">&lt;-</span> <span class="fu">initial_split</span>(employee_attrition_readable_tbl, <span class="at">prop =</span> <span class="fl">0.85</span>)</span>
+<span id="cb15-3"><a href="#cb15-3"></a></span>
+<span id="cb15-4"><a href="#cb15-4"></a>train_tbl <span class="ot">&lt;-</span> <span class="fu">training</span>(split)</span>
+<span id="cb15-5"><a href="#cb15-5"></a>test_tbl  <span class="ot">&lt;-</span> <span class="fu">testing</span>(split)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section><section id="ml-preprocessing-recipe" class="level1" data-number="3"><h1 data-number="3">
+<span class="header-section-number">3</span> ML Preprocessing Recipe</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1"></a>recipe_obj <span class="ot">&lt;-</span> <span class="fu">recipe</span>(Attrition <span class="sc">~</span> ., <span class="at">data =</span> train_tbl) <span class="sc">%&gt;%</span></span>
+<span id="cb16-2"><a href="#cb16-2"></a>                <span class="fu">step_zv</span>(<span class="fu">all_predictors</span>()) <span class="sc">%&gt;%</span></span>
+<span id="cb16-3"><a href="#cb16-3"></a>                <span class="fu">step_mutate_at</span>(<span class="fu">c</span>(<span class="st">"JobLevel"</span>, <span class="st">"StockOptionLevel"</span>), <span class="at">fn =</span> as.factor) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-4"><a href="#cb16-4"></a>                <span class="fu">prep</span>()</span>
+<span id="cb16-5"><a href="#cb16-5"></a></span>
+<span id="cb16-6"><a href="#cb16-6"></a>recipe_obj</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; </code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; ── Recipe ──────────────────────────────────────────────────────────────────────</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; </code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; ── Inputs</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; Number of variables by role</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; outcome:    1
+#&gt; predictor: 34</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; </code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; ── Training information</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; Training data contained 1249 data points and no incomplete rows.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; </code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; ── Operations</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; • Zero variance filter removed: EmployeeCount and Over18, ... | Trained</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; • Variable mutation for: JobLevel and StockOptionLevel | Trained</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1"></a>train_tbl <span class="ot">&lt;-</span> <span class="fu">bake</span>(recipe_obj, <span class="at">new_data =</span> train_tbl)</span>
+<span id="cb30-2"><a href="#cb30-2"></a>test_tbl  <span class="ot">&lt;-</span> <span class="fu">bake</span>(recipe_obj, <span class="at">new_data =</span> test_tbl)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section><section id="h2o-model" class="level1" data-number="4"><h1 data-number="4">
+<span class="header-section-number">4</span> H2O Model</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1"></a><span class="fu">h2o.init</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt;  Connection successful!
+#&gt; 
+#&gt; R is connected to the H2O cluster: 
+#&gt;     H2O cluster uptime:         22 hours 58 minutes 
+#&gt;     H2O cluster timezone:       Europe/Berlin 
+#&gt;     H2O data parsing timezone:  UTC 
+#&gt;     H2O cluster version:        3.44.0.3 
+#&gt;     H2O cluster version age:    5 months and 30 days 
+#&gt;     H2O cluster name:           H2O_started_from_R_MaximilianMuza_qlj325 
+#&gt;     H2O cluster total nodes:    1 
+#&gt;     H2O cluster total memory:   6.39 GB 
+#&gt;     H2O cluster total cores:    16 
+#&gt;     H2O cluster allowed cores:  16 
+#&gt;     H2O cluster healthy:        TRUE 
+#&gt;     H2O Connection ip:          localhost 
+#&gt;     H2O Connection port:        54321 
+#&gt;     H2O Connection proxy:       NA 
+#&gt;     H2O Internal Security:      FALSE 
+#&gt;     R Version:                  R version 4.4.0 (2024-04-24 ucrt)</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; Warning in h2o.clusterInfo(): 
+#&gt; Your H2O cluster version is (5 months and 30 days) old. There may be a newer version available.
+#&gt; Please download and install the latest version from: https://h2o-release.s3.amazonaws.com/h2o/latest_stable.html</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1"></a>automl_leader <span class="ot">&lt;-</span> <span class="fu">h2o.loadModel</span>(<span class="st">"C:/Users/MaximilianMuza/Documents/Projects/ss24-bdml-MaximilianMuza/models/StackedEnsemble_BestOfFamily_2_AutoML_1_20240619_143112"</span>)</span>
+<span id="cb34-2"><a href="#cb34-2"></a>automl_leader</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Model Details:
+#&gt; ==============
+#&gt; 
+#&gt; H2OBinomialModel: stackedensemble
+#&gt; Model ID:  StackedEnsemble_BestOfFamily_2_AutoML_1_20240619_143112 
+#&gt; Model Summary for Stacked Ensemble: 
+#&gt;                                     key            value
+#&gt; 1                     Stacking strategy cross_validation
+#&gt; 2  Number of base models (used / total)              3/3
+#&gt; 3      # GBM base models (used / total)              1/1
+#&gt; 4      # GLM base models (used / total)              1/1
+#&gt; 5      # DRF base models (used / total)              1/1
+#&gt; 6                 Metalearner algorithm              GLM
+#&gt; 7    Metalearner fold assignment scheme           Random
+#&gt; 8                    Metalearner nfolds                5
+#&gt; 9               Metalearner fold_column               NA
+#&gt; 10   Custom metalearner hyperparameters             None
+#&gt; 
+#&gt; 
+#&gt; H2OBinomialMetrics: stackedensemble
+#&gt; ** Reported on training data. **
+#&gt; 
+#&gt; MSE:  0.07823066
+#&gt; RMSE:  0.2796975
+#&gt; LogLoss:  0.2743965
+#&gt; Mean Per-Class Error:  0.1868938
+#&gt; AUC:  0.890229
+#&gt; AUCPR:  0.7536347
+#&gt; Gini:  0.7804581
+#&gt; 
+#&gt; Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
+#&gt;         No Yes    Error      Rate
+#&gt; No     849  43 0.048206   =43/892
+#&gt; Yes     56 116 0.325581   =56/172
+#&gt; Totals 905 159 0.093045  =99/1064
+#&gt; 
+#&gt; Maximum Metrics: Maximum metrics at their respective thresholds
+#&gt;                         metric threshold      value idx
+#&gt; 1                       max f1  0.337345   0.700906 120
+#&gt; 2                       max f2  0.263161   0.714286 152
+#&gt; 3                 max f0point5  0.483912   0.774254  75
+#&gt; 4                 max accuracy  0.443321   0.909774  85
+#&gt; 5                max precision  0.923664   1.000000   0
+#&gt; 6                   max recall  0.006283   1.000000 389
+#&gt; 7              max specificity  0.923664   1.000000   0
+#&gt; 8             max absolute_mcc  0.337345   0.646614 120
+#&gt; 9   max min_per_class_accuracy  0.194257   0.813953 195
+#&gt; 10 max mean_per_class_accuracy  0.263161   0.826794 152
+#&gt; 11                     max tns  0.923664 892.000000   0
+#&gt; 12                     max fns  0.923664 171.000000   0
+#&gt; 13                     max fps  0.000754 892.000000 399
+#&gt; 14                     max tps  0.006283 172.000000 389
+#&gt; 15                     max tnr  0.923664   1.000000   0
+#&gt; 16                     max fnr  0.923664   0.994186   0
+#&gt; 17                     max fpr  0.000754   1.000000 399
+#&gt; 18                     max tpr  0.006283   1.000000 389
+#&gt; 
+#&gt; Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
+#&gt; H2OBinomialMetrics: stackedensemble
+#&gt; ** Reported on validation data. **
+#&gt; 
+#&gt; MSE:  0.07682191
+#&gt; RMSE:  0.2771677
+#&gt; LogLoss:  0.255089
+#&gt; Mean Per-Class Error:  0.1522504
+#&gt; AUC:  0.9172527
+#&gt; AUCPR:  0.6805513
+#&gt; Gini:  0.8345054
+#&gt; 
+#&gt; Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
+#&gt;         No Yes    Error     Rate
+#&gt; No     145  13 0.082278  =13/158
+#&gt; Yes      6  21 0.222222    =6/27
+#&gt; Totals 151  34 0.102703  =19/185
+#&gt; 
+#&gt; Maximum Metrics: Maximum metrics at their respective thresholds
+#&gt;                         metric threshold      value idx
+#&gt; 1                       max f1  0.364892   0.688525  33
+#&gt; 2                       max f2  0.305397   0.789474  43
+#&gt; 3                 max f0point5  0.364892   0.644172  33
+#&gt; 4                 max accuracy  0.364892   0.897297  33
+#&gt; 5                max precision  0.928331   1.000000   0
+#&gt; 6                   max recall  0.058914   1.000000 115
+#&gt; 7              max specificity  0.928331   1.000000   0
+#&gt; 8             max absolute_mcc  0.340155   0.635386  36
+#&gt; 9   max min_per_class_accuracy  0.305397   0.873418  43
+#&gt; 10 max mean_per_class_accuracy  0.305397   0.881153  43
+#&gt; 11                     max tns  0.928331 158.000000   0
+#&gt; 12                     max fns  0.928331  26.000000   0
+#&gt; 13                     max fps  0.001694 158.000000 184
+#&gt; 14                     max tps  0.058914  27.000000 115
+#&gt; 15                     max tnr  0.928331   1.000000   0
+#&gt; 16                     max fnr  0.928331   0.962963   0
+#&gt; 17                     max fpr  0.001694   1.000000 184
+#&gt; 18                     max tpr  0.058914   1.000000 115
+#&gt; 
+#&gt; Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
+#&gt; H2OBinomialMetrics: stackedensemble
+#&gt; ** Reported on cross-validation data. **
+#&gt; ** 5-fold cross-validation on training data (Metrics computed for combined holdout predictions) **
+#&gt; 
+#&gt; MSE:  0.09561189
+#&gt; RMSE:  0.3092117
+#&gt; LogLoss:  0.3302917
+#&gt; Mean Per-Class Error:  0.2601288
+#&gt; AUC:  0.8311379
+#&gt; AUCPR:  0.6050609
+#&gt; Gini:  0.6622758
+#&gt; 
+#&gt; Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
+#&gt;         No Yes    Error       Rate
+#&gt; No     848  44 0.049327    =44/892
+#&gt; Yes     81  91 0.470930    =81/172
+#&gt; Totals 929 135 0.117481  =125/1064
+#&gt; 
+#&gt; Maximum Metrics: Maximum metrics at their respective thresholds
+#&gt;                         metric threshold      value idx
+#&gt; 1                       max f1  0.378371   0.592834 106
+#&gt; 2                       max f2  0.186678   0.644841 203
+#&gt; 3                 max f0point5  0.380485   0.639368 104
+#&gt; 4                 max accuracy  0.380485   0.882519 104
+#&gt; 5                max precision  0.905703   1.000000   0
+#&gt; 6                   max recall  0.002584   1.000000 397
+#&gt; 7              max specificity  0.905703   1.000000   0
+#&gt; 8             max absolute_mcc  0.378371   0.530616 106
+#&gt; 9   max min_per_class_accuracy  0.180220   0.761628 208
+#&gt; 10 max mean_per_class_accuracy  0.186678   0.771405 203
+#&gt; 11                     max tns  0.905703 892.000000   0
+#&gt; 12                     max fns  0.905703 171.000000   0
+#&gt; 13                     max fps  0.001012 892.000000 399
+#&gt; 14                     max tps  0.002584 172.000000 397
+#&gt; 15                     max tnr  0.905703   1.000000   0
+#&gt; 16                     max fnr  0.905703   0.994186   0
+#&gt; 17                     max fpr  0.001012   1.000000 399
+#&gt; 18                     max tpr  0.002584   1.000000 397
+#&gt; 
+#&gt; Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
+#&gt; Cross-Validation Metrics Summary: 
+#&gt;                mean       sd cv_1_valid cv_2_valid cv_3_valid cv_4_valid
+#&gt; accuracy   0.882994 0.020516   0.885057   0.851163   0.902655   0.898734
+#&gt; auc        0.832872 0.021704   0.856107   0.815268   0.850269   0.806082
+#&gt; err        0.117006 0.020516   0.114943   0.148837   0.097345   0.101266
+#&gt; err_count 24.800000 4.604346  20.000000  32.000000  22.000000  24.000000
+#&gt; f0point5   0.638412 0.064718   0.598291   0.589744   0.744048   0.657143
+#&gt;           cv_5_valid
+#&gt; accuracy    0.877359
+#&gt; auc         0.836634
+#&gt; err         0.122642
+#&gt; err_count  26.000000
+#&gt; f0point5    0.602837
+#&gt; 
+#&gt; ---
+#&gt;                         mean        sd cv_1_valid cv_2_valid cv_3_valid
+#&gt; precision           0.653292  0.075788   0.608696   0.589744   0.781250
+#&gt; r2                  0.286808  0.041894   0.264491   0.249023   0.357675
+#&gt; recall              0.589408  0.055303   0.560000   0.589744   0.625000
+#&gt; residual_deviance 139.981250 23.218420 102.873400 160.974750 147.333650
+#&gt; rmse                0.309737  0.013784   0.300821   0.333936   0.305883
+#&gt; specificity         0.939156  0.019168   0.939597   0.909091   0.962366
+#&gt;                   cv_4_valid cv_5_valid
+#&gt; precision           0.657143   0.629630
+#&gt; r2                  0.278713   0.284138
+#&gt; recall              0.657143   0.515151
+#&gt; residual_deviance 155.457640 133.266780
+#&gt; rmse                0.301311   0.306734
+#&gt; specificity         0.940594   0.944134</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1"></a>predictions_tbl <span class="ot">&lt;-</span> automl_leader <span class="sc">%&gt;%</span> </span>
+<span id="cb36-2"><a href="#cb36-2"></a>    <span class="fu">h2o.predict</span>(<span class="at">newdata =</span> <span class="fu">as.h2o</span>(test_tbl)) <span class="sc">%&gt;%</span></span>
+<span id="cb36-3"><a href="#cb36-3"></a>    <span class="fu">as.tibble</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb36-4"><a href="#cb36-4"></a>    <span class="fu">bind_cols</span>(</span>
+<span id="cb36-5"><a href="#cb36-5"></a>        test_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb36-6"><a href="#cb36-6"></a>            <span class="fu">select</span>(Attrition, EmployeeNumber)</span>
+<span id="cb36-7"><a href="#cb36-7"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; Warning: `as.tibble()` was deprecated in tibble 2.0.0.
+#&gt; ℹ Please use `as_tibble()` instead.
+#&gt; ℹ The signature and semantics have changed, see `?as_tibble`.</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======================================================================| 100%
+#&gt; 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======================================================================| 100%</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1"></a>predictions_tbl</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div data-pagedtable="false">
+  <script data-pagedtable-source="" type="application/json">
+{"columns":[{"label":["predict"],"name":[1],"type":["fct"],"align":["left"]},{"label":["No"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["Yes"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["Attrition"],"name":[4],"type":["fct"],"align":["left"]},{"label":["EmployeeNumber"],"name":[5],"type":["dbl"],"align":["right"]}],"data":[{"1":"Yes","2":"0.4274472","3":"0.572552757","4":"Yes","5":"1"},{"1":"No","2":"0.9901285","3":"0.009871543","4":"No","5":"2"},{"1":"No","2":"0.6516236","3":"0.348376424","4":"No","5":"7"},{"1":"Yes","2":"0.6003801","3":"0.399619891","4":"No","5":"10"},{"1":"No","2":"0.8752897","3":"0.124710303","4":"No","5":"15"},{"1":"No","2":"0.9585985","3":"0.041401525","4":"No","5":"18"},{"1":"Yes","2":"0.2112130","3":"0.788787010","4":"Yes","5":"19"},{"1":"No","2":"0.8021637","3":"0.197836302","4":"No","5":"22"},{"1":"No","2":"0.9982498","3":"0.001750170","4":"No","5":"32"},{"1":"No","2":"0.9717582","3":"0.028241843","4":"No","5":"35"},{"1":"No","2":"0.9931418","3":"0.006858183","4":"No","5":"46"},{"1":"No","2":"0.8442014","3":"0.155798559","4":"No","5":"56"},{"1":"No","2":"0.9818493","3":"0.018150745","4":"Yes","5":"58"},{"1":"No","2":"0.8914799","3":"0.108520137","4":"No","5":"60"},{"1":"No","2":"0.9610224","3":"0.038977602","4":"No","5":"63"},{"1":"Yes","2":"0.4694910","3":"0.530509013","4":"Yes","5":"65"},{"1":"No","2":"0.7946065","3":"0.205393493","4":"No","5":"88"},{"1":"No","2":"0.9963897","3":"0.003610344","4":"No","5":"96"},{"1":"No","2":"0.9460011","3":"0.053998854","4":"No","5":"110"},{"1":"No","2":"0.9793122","3":"0.020687773","4":"No","5":"117"},{"1":"No","2":"0.9326127","3":"0.067387299","4":"No","5":"121"},{"1":"Yes","2":"0.5641191","3":"0.435880931","4":"Yes","5":"133"},{"1":"No","2":"0.9923891","3":"0.007610859","4":"No","5":"139"},{"1":"No","2":"0.9963419","3":"0.003658068","4":"No","5":"140"},{"1":"Yes","2":"0.5197016","3":"0.480298383","4":"Yes","5":"142"},{"1":"No","2":"0.7412054","3":"0.258794626","4":"No","5":"159"},{"1":"No","2":"0.9819424","3":"0.018057639","4":"No","5":"170"},{"1":"No","2":"0.7294111","3":"0.270588874","4":"No","5":"183"},{"1":"No","2":"0.9156270","3":"0.084373037","4":"No","5":"184"},{"1":"No","2":"0.8986143","3":"0.101385655","4":"No","5":"193"},{"1":"No","2":"0.9174137","3":"0.082586281","4":"No","5":"200"},{"1":"No","2":"0.7711775","3":"0.228822464","4":"No","5":"214"},{"1":"No","2":"0.9031012","3":"0.096898780","4":"No","5":"227"},{"1":"No","2":"0.7378865","3":"0.262113465","4":"No","5":"238"},{"1":"No","2":"0.9217593","3":"0.078240668","4":"No","5":"244"},{"1":"No","2":"0.9884142","3":"0.011585764","4":"No","5":"252"},{"1":"No","2":"0.9945339","3":"0.005466080","4":"No","5":"258"},{"1":"No","2":"0.9709244","3":"0.029075595","4":"No","5":"264"},{"1":"No","2":"0.9769211","3":"0.023078874","4":"No","5":"288"},{"1":"No","2":"0.8535681","3":"0.146431863","4":"Yes","5":"291"},{"1":"No","2":"0.9693131","3":"0.030686938","4":"No","5":"292"},{"1":"No","2":"0.8708315","3":"0.129168522","4":"No","5":"302"},{"1":"Yes","2":"0.5280101","3":"0.471989906","4":"Yes","5":"315"},{"1":"Yes","2":"0.3951888","3":"0.604811162","4":"Yes","5":"331"},{"1":"No","2":"0.9771013","3":"0.022898712","4":"No","5":"349"},{"1":"No","2":"0.8840090","3":"0.115991020","4":"No","5":"351"},{"1":"No","2":"0.9229543","3":"0.077045653","4":"No","5":"366"},{"1":"No","2":"0.9470607","3":"0.052939319","4":"No","5":"374"},{"1":"No","2":"0.9701606","3":"0.029839385","4":"No","5":"381"},{"1":"No","2":"0.9747750","3":"0.025225013","4":"No","5":"387"},{"1":"Yes","2":"0.3438637","3":"0.656136325","4":"Yes","5":"392"},{"1":"No","2":"0.8807952","3":"0.119204836","4":"No","5":"407"},{"1":"No","2":"0.9835569","3":"0.016443094","4":"No","5":"408"},{"1":"No","2":"0.8892767","3":"0.110723330","4":"No","5":"429"},{"1":"No","2":"0.9963875","3":"0.003612460","4":"No","5":"447"},{"1":"No","2":"0.9819337","3":"0.018066338","4":"No","5":"461"},{"1":"No","2":"0.9841796","3":"0.015820434","4":"No","5":"464"},{"1":"No","2":"0.9843413","3":"0.015658694","4":"No","5":"479"},{"1":"No","2":"0.8134928","3":"0.186507164","4":"No","5":"481"},{"1":"Yes","2":"0.2954284","3":"0.704571603","4":"Yes","5":"485"},{"1":"No","2":"0.9695160","3":"0.030483962","4":"No","5":"521"},{"1":"No","2":"0.9836175","3":"0.016382485","4":"No","5":"522"},{"1":"No","2":"0.9435024","3":"0.056497575","4":"No","5":"523"},{"1":"No","2":"0.7989674","3":"0.201032590","4":"No","5":"527"},{"1":"No","2":"0.9702028","3":"0.029797224","4":"No","5":"548"},{"1":"No","2":"0.6863378","3":"0.313662178","4":"Yes","5":"555"},{"1":"Yes","2":"0.4698027","3":"0.530197324","4":"Yes","5":"566"},{"1":"No","2":"0.9731714","3":"0.026828564","4":"No","5":"569"},{"1":"No","2":"0.9858260","3":"0.014174047","4":"No","5":"579"},{"1":"No","2":"0.7223416","3":"0.277658435","4":"No","5":"586"},{"1":"No","2":"0.8530756","3":"0.146924369","4":"No","5":"592"},{"1":"No","2":"0.9749660","3":"0.025033999","4":"No","5":"595"},{"1":"No","2":"0.9256594","3":"0.074340621","4":"No","5":"626"},{"1":"No","2":"0.9210587","3":"0.078941328","4":"Yes","5":"631"},{"1":"No","2":"0.9761214","3":"0.023878555","4":"No","5":"661"},{"1":"Yes","2":"0.5487950","3":"0.451205028","4":"No","5":"669"},{"1":"No","2":"0.9453090","3":"0.054690959","4":"No","5":"671"},{"1":"No","2":"0.9750044","3":"0.024995623","4":"No","5":"691"},{"1":"No","2":"0.7770627","3":"0.222937350","4":"No","5":"700"},{"1":"No","2":"0.7827215","3":"0.217278544","4":"No","5":"705"},{"1":"No","2":"0.9549660","3":"0.045033991","4":"No","5":"722"},{"1":"No","2":"0.9805653","3":"0.019434749","4":"No","5":"762"},{"1":"No","2":"0.8453115","3":"0.154688504","4":"No","5":"764"},{"1":"No","2":"0.9829663","3":"0.017033664","4":"No","5":"769"},{"1":"No","2":"0.9869603","3":"0.013039688","4":"No","5":"771"},{"1":"No","2":"0.9233254","3":"0.076674642","4":"No","5":"772"},{"1":"No","2":"0.7815079","3":"0.218492059","4":"No","5":"805"},{"1":"No","2":"0.7209950","3":"0.279005015","4":"Yes","5":"811"},{"1":"Yes","2":"0.5402173","3":"0.459782749","4":"Yes","5":"819"},{"1":"No","2":"0.9814293","3":"0.018570663","4":"No","5":"820"},{"1":"No","2":"0.9714632","3":"0.028536819","4":"No","5":"836"},{"1":"No","2":"0.9857523","3":"0.014247666","4":"No","5":"843"},{"1":"No","2":"0.9826608","3":"0.017339172","4":"No","5":"867"},{"1":"No","2":"0.8067473","3":"0.193252702","4":"No","5":"910"},{"1":"Yes","2":"0.1046271","3":"0.895372865","4":"Yes","5":"911"},{"1":"No","2":"0.8633366","3":"0.136663435","4":"No","5":"916"},{"1":"No","2":"0.9213052","3":"0.078694784","4":"No","5":"920"},{"1":"No","2":"0.6845757","3":"0.315424347","4":"Yes","5":"922"},{"1":"No","2":"0.8996146","3":"0.100385447","4":"No","5":"933"},{"1":"No","2":"0.9130773","3":"0.086922737","4":"No","5":"951"},{"1":"Yes","2":"0.2284230","3":"0.771576960","4":"Yes","5":"952"},{"1":"No","2":"0.6638810","3":"0.336119035","4":"No","5":"954"},{"1":"Yes","2":"0.3248649","3":"0.675135091","4":"Yes","5":"960"},{"1":"No","2":"0.9798143","3":"0.020185708","4":"No","5":"969"},{"1":"No","2":"0.9565378","3":"0.043462232","4":"No","5":"1002"},{"1":"Yes","2":"0.2244439","3":"0.775556131","4":"Yes","5":"1004"},{"1":"No","2":"0.9194011","3":"0.080598892","4":"No","5":"1006"},{"1":"No","2":"0.9021573","3":"0.097842659","4":"No","5":"1022"},{"1":"No","2":"0.9986043","3":"0.001395680","4":"No","5":"1035"},{"1":"Yes","2":"0.5031866","3":"0.496813393","4":"Yes","5":"1037"},{"1":"No","2":"0.9001809","3":"0.099819056","4":"No","5":"1050"},{"1":"No","2":"0.6832484","3":"0.316751554","4":"No","5":"1055"},{"1":"No","2":"0.9639879","3":"0.036012084","4":"No","5":"1084"},{"1":"No","2":"0.8276757","3":"0.172324308","4":"Yes","5":"1106"},{"1":"No","2":"0.8917237","3":"0.108276293","4":"Yes","5":"1127"},{"1":"No","2":"0.9213098","3":"0.078690235","4":"No","5":"1132"},{"1":"No","2":"0.9381616","3":"0.061838405","4":"No","5":"1133"},{"1":"No","2":"0.9272797","3":"0.072720325","4":"No","5":"1152"},{"1":"Yes","2":"0.4804291","3":"0.519570880","4":"No","5":"1173"},{"1":"No","2":"0.9765272","3":"0.023472835","4":"No","5":"1177"},{"1":"No","2":"0.7409130","3":"0.259087007","4":"No","5":"1195"},{"1":"No","2":"0.8142702","3":"0.185729846","4":"Yes","5":"1200"},{"1":"Yes","2":"0.5979406","3":"0.402059443","4":"No","5":"1202"},{"1":"No","2":"0.9084231","3":"0.091576891","4":"No","5":"1204"},{"1":"No","2":"0.8064189","3":"0.193581096","4":"No","5":"1206"},{"1":"No","2":"0.8339064","3":"0.166093550","4":"No","5":"1212"},{"1":"No","2":"0.7088767","3":"0.291123252","4":"Yes","5":"1219"},{"1":"No","2":"0.8175983","3":"0.182401730","4":"No","5":"1220"},{"1":"No","2":"0.9912914","3":"0.008708563","4":"No","5":"1228"},{"1":"No","2":"0.9654454","3":"0.034554567","4":"No","5":"1231"},{"1":"No","2":"0.9373502","3":"0.062649767","4":"No","5":"1235"},{"1":"No","2":"0.9762083","3":"0.023791729","4":"No","5":"1252"},{"1":"No","2":"0.9962243","3":"0.003775735","4":"No","5":"1288"},{"1":"No","2":"0.6434011","3":"0.356598866","4":"Yes","5":"1299"},{"1":"No","2":"0.8818208","3":"0.118179162","4":"No","5":"1303"},{"1":"No","2":"0.6770067","3":"0.322993273","4":"Yes","5":"1310"},{"1":"No","2":"0.8961288","3":"0.103871197","4":"No","5":"1314"},{"1":"No","2":"0.8190751","3":"0.180924900","4":"No","5":"1321"},{"1":"No","2":"0.9399391","3":"0.060060918","4":"No","5":"1322"},{"1":"No","2":"0.9803661","3":"0.019633883","4":"No","5":"1349"},{"1":"No","2":"0.9091831","3":"0.090816855","4":"No","5":"1356"},{"1":"No","2":"0.8943500","3":"0.105649981","4":"No","5":"1373"},{"1":"No","2":"0.8011097","3":"0.198890278","4":"No","5":"1374"},{"1":"No","2":"0.8811961","3":"0.118803863","4":"No","5":"1392"},{"1":"No","2":"0.7509623","3":"0.249037734","4":"No","5":"1394"},{"1":"No","2":"0.6763405","3":"0.323659469","4":"No","5":"1403"},{"1":"Yes","2":"0.5015455","3":"0.498454491","4":"Yes","5":"1420"},{"1":"No","2":"0.8093575","3":"0.190642456","4":"No","5":"1436"},{"1":"No","2":"0.9921019","3":"0.007898102","4":"No","5":"1449"},{"1":"No","2":"0.8647788","3":"0.135221238","4":"No","5":"1477"},{"1":"No","2":"0.8837768","3":"0.116223206","4":"No","5":"1479"},{"1":"Yes","2":"0.3850457","3":"0.614954324","4":"Yes","5":"1489"},{"1":"No","2":"0.7506630","3":"0.249336963","4":"No","5":"1502"},{"1":"No","2":"0.8745078","3":"0.125492216","4":"No","5":"1507"},{"1":"No","2":"0.9171257","3":"0.082874268","4":"No","5":"1516"},{"1":"No","2":"0.9354876","3":"0.064512371","4":"No","5":"1525"},{"1":"No","2":"0.7424819","3":"0.257518064","4":"No","5":"1533"},{"1":"Yes","2":"0.5767585","3":"0.423241450","4":"No","5":"1535"},{"1":"No","2":"0.9222097","3":"0.077790342","4":"No","5":"1542"},{"1":"No","2":"0.9060271","3":"0.093972923","4":"No","5":"1549"},{"1":"No","2":"0.9842542","3":"0.015745783","4":"No","5":"1574"},{"1":"No","2":"0.8531843","3":"0.146815690","4":"No","5":"1576"},{"1":"No","2":"0.9627961","3":"0.037203882","4":"No","5":"1598"},{"1":"No","2":"0.8771274","3":"0.122872649","4":"No","5":"1599"},{"1":"Yes","2":"0.4554777","3":"0.544522252","4":"No","5":"1605"},{"1":"No","2":"0.9958683","3":"0.004131719","4":"No","5":"1608"},{"1":"No","2":"0.7208764","3":"0.279123643","4":"No","5":"1613"},{"1":"No","2":"0.9706733","3":"0.029326734","4":"No","5":"1615"},{"1":"No","2":"0.9947056","3":"0.005294371","4":"No","5":"1627"},{"1":"No","2":"0.9557033","3":"0.044296748","4":"No","5":"1628"},{"1":"No","2":"0.9976488","3":"0.002351242","4":"No","5":"1635"},{"1":"No","2":"0.9824991","3":"0.017500918","4":"No","5":"1651"},{"1":"No","2":"0.9465274","3":"0.053472596","4":"No","5":"1654"},{"1":"No","2":"0.9946247","3":"0.005375282","4":"No","5":"1668"},{"1":"No","2":"0.7457270","3":"0.254272994","4":"No","5":"1669"},{"1":"Yes","2":"0.4912647","3":"0.508735258","4":"No","5":"1678"},{"1":"Yes","2":"0.4771579","3":"0.522842101","4":"No","5":"1680"},{"1":"No","2":"0.9614428","3":"0.038557186","4":"No","5":"1681"},{"1":"No","2":"0.7512848","3":"0.248715206","4":"Yes","5":"1691"},{"1":"No","2":"0.9734521","3":"0.026547896","4":"No","5":"1697"},{"1":"No","2":"0.9733690","3":"0.026630968","4":"No","5":"1707"},{"1":"Yes","2":"0.5086768","3":"0.491323161","4":"Yes","5":"1716"},{"1":"No","2":"0.6799139","3":"0.320086086","4":"No","5":"1718"},{"1":"No","2":"0.9743410","3":"0.025658952","4":"No","5":"1722"},{"1":"No","2":"0.9879755","3":"0.012024473","4":"No","5":"1727"},{"1":"No","2":"0.9866436","3":"0.013356443","4":"No","5":"1737"},{"1":"No","2":"0.9070726","3":"0.092927393","4":"No","5":"1740"},{"1":"No","2":"0.7504323","3":"0.249567686","4":"Yes","5":"1747"},{"1":"No","2":"0.7667432","3":"0.233256842","4":"No","5":"1755"},{"1":"No","2":"0.9897308","3":"0.010269240","4":"No","5":"1763"},{"1":"No","2":"0.8739850","3":"0.126015019","4":"No","5":"1768"},{"1":"No","2":"0.9862282","3":"0.013771754","4":"No","5":"1789"},{"1":"No","2":"0.9400202","3":"0.059979812","4":"Yes","5":"1807"},{"1":"No","2":"0.9944547","3":"0.005545271","4":"No","5":"1830"},{"1":"No","2":"0.8800768","3":"0.119923194","4":"No","5":"1837"},{"1":"No","2":"0.8414287","3":"0.158571323","4":"Yes","5":"1842"},{"1":"Yes","2":"0.1398825","3":"0.860117458","4":"Yes","5":"1844"},{"1":"No","2":"0.9897855","3":"0.010214501","4":"No","5":"1845"},{"1":"No","2":"0.6598433","3":"0.340156714","4":"No","5":"1850"},{"1":"Yes","2":"0.5635934","3":"0.436406584","4":"No","5":"1853"},{"1":"No","2":"0.7889346","3":"0.211065422","4":"No","5":"1856"},{"1":"No","2":"0.9958055","3":"0.004194462","4":"No","5":"1863"},{"1":"No","2":"0.9864465","3":"0.013553479","4":"No","5":"1867"},{"1":"No","2":"0.9422631","3":"0.057736917","4":"No","5":"1881"},{"1":"No","2":"0.9711017","3":"0.028898322","4":"No","5":"1909"},{"1":"No","2":"0.9604606","3":"0.039539448","4":"No","5":"1911"},{"1":"No","2":"0.6936399","3":"0.306360055","4":"No","5":"1916"},{"1":"No","2":"0.9447157","3":"0.055284286","4":"No","5":"1918"},{"1":"No","2":"0.9367664","3":"0.063233573","4":"No","5":"1927"},{"1":"No","2":"0.9927847","3":"0.007215338","4":"No","5":"1934"},{"1":"No","2":"0.9819427","3":"0.018057295","4":"No","5":"1940"},{"1":"No","2":"0.8818429","3":"0.118157065","4":"No","5":"1948"},{"1":"No","2":"0.9650829","3":"0.034917141","4":"No","5":"1956"},{"1":"No","2":"0.9834408","3":"0.016559186","4":"No","5":"1969"},{"1":"No","2":"0.8733307","3":"0.126669342","4":"No","5":"1997"},{"1":"No","2":"0.8444175","3":"0.155582533","4":"No","5":"2014"},{"1":"No","2":"0.6702902","3":"0.329709824","4":"No","5":"2020"},{"1":"No","2":"0.9427943","3":"0.057205697","4":"No","5":"2024"},{"1":"No","2":"0.8369123","3":"0.163087745","4":"Yes","5":"2032"},{"1":"No","2":"0.9574125","3":"0.042587548","4":"Yes","5":"2044"},{"1":"No","2":"0.9774402","3":"0.022559765","4":"No","5":"2061"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+</div>
+</div>
+</section><section id="explainer-object" class="level1" data-number="5"><h1 data-number="5">
+<span class="header-section-number">5</span> Explainer Object</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1"></a>explainer <span class="ot">&lt;-</span> train_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb40-2"><a href="#cb40-2"></a>  <span class="fu">select</span>(<span class="sc">-</span>Attrition) <span class="sc">%&gt;%</span></span>
+<span id="cb40-3"><a href="#cb40-3"></a>  <span class="fu">lime</span>(</span>
+<span id="cb40-4"><a href="#cb40-4"></a>    <span class="at">model           =</span> automl_leader,</span>
+<span id="cb40-5"><a href="#cb40-5"></a>    <span class="at">bin_continuous  =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb40-6"><a href="#cb40-6"></a>    <span class="at">n_bins          =</span> <span class="dv">4</span>,</span>
+<span id="cb40-7"><a href="#cb40-7"></a>    <span class="at">quantile_bins   =</span> <span class="cn">TRUE</span></span>
+<span id="cb40-8"><a href="#cb40-8"></a>  )</span>
+<span id="cb40-9"><a href="#cb40-9"></a>explainer</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; $model
+#&gt; Model Details:
+#&gt; ==============
+#&gt; 
+#&gt; H2OBinomialModel: stackedensemble
+#&gt; Model ID:  StackedEnsemble_BestOfFamily_2_AutoML_1_20240619_143112 
+#&gt; Model Summary for Stacked Ensemble: 
+#&gt;                                     key            value
+#&gt; 1                     Stacking strategy cross_validation
+#&gt; 2  Number of base models (used / total)              3/3
+#&gt; 3      # GBM base models (used / total)              1/1
+#&gt; 4      # GLM base models (used / total)              1/1
+#&gt; 5      # DRF base models (used / total)              1/1
+#&gt; 6                 Metalearner algorithm              GLM
+#&gt; 7    Metalearner fold assignment scheme           Random
+#&gt; 8                    Metalearner nfolds                5
+#&gt; 9               Metalearner fold_column               NA
+#&gt; 10   Custom metalearner hyperparameters             None
+#&gt; 
+#&gt; 
+#&gt; H2OBinomialMetrics: stackedensemble
+#&gt; ** Reported on training data. **
+#&gt; 
+#&gt; MSE:  0.07823066
+#&gt; RMSE:  0.2796975
+#&gt; LogLoss:  0.2743965
+#&gt; Mean Per-Class Error:  0.1868938
+#&gt; AUC:  0.890229
+#&gt; AUCPR:  0.7536347
+#&gt; Gini:  0.7804581
+#&gt; 
+#&gt; Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
+#&gt;         No Yes    Error      Rate
+#&gt; No     849  43 0.048206   =43/892
+#&gt; Yes     56 116 0.325581   =56/172
+#&gt; Totals 905 159 0.093045  =99/1064
+#&gt; 
+#&gt; Maximum Metrics: Maximum metrics at their respective thresholds
+#&gt;                         metric threshold      value idx
+#&gt; 1                       max f1  0.337345   0.700906 120
+#&gt; 2                       max f2  0.263161   0.714286 152
+#&gt; 3                 max f0point5  0.483912   0.774254  75
+#&gt; 4                 max accuracy  0.443321   0.909774  85
+#&gt; 5                max precision  0.923664   1.000000   0
+#&gt; 6                   max recall  0.006283   1.000000 389
+#&gt; 7              max specificity  0.923664   1.000000   0
+#&gt; 8             max absolute_mcc  0.337345   0.646614 120
+#&gt; 9   max min_per_class_accuracy  0.194257   0.813953 195
+#&gt; 10 max mean_per_class_accuracy  0.263161   0.826794 152
+#&gt; 11                     max tns  0.923664 892.000000   0
+#&gt; 12                     max fns  0.923664 171.000000   0
+#&gt; 13                     max fps  0.000754 892.000000 399
+#&gt; 14                     max tps  0.006283 172.000000 389
+#&gt; 15                     max tnr  0.923664   1.000000   0
+#&gt; 16                     max fnr  0.923664   0.994186   0
+#&gt; 17                     max fpr  0.000754   1.000000 399
+#&gt; 18                     max tpr  0.006283   1.000000 389
+#&gt; 
+#&gt; Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
+#&gt; H2OBinomialMetrics: stackedensemble
+#&gt; ** Reported on validation data. **
+#&gt; 
+#&gt; MSE:  0.07682191
+#&gt; RMSE:  0.2771677
+#&gt; LogLoss:  0.255089
+#&gt; Mean Per-Class Error:  0.1522504
+#&gt; AUC:  0.9172527
+#&gt; AUCPR:  0.6805513
+#&gt; Gini:  0.8345054
+#&gt; 
+#&gt; Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
+#&gt;         No Yes    Error     Rate
+#&gt; No     145  13 0.082278  =13/158
+#&gt; Yes      6  21 0.222222    =6/27
+#&gt; Totals 151  34 0.102703  =19/185
+#&gt; 
+#&gt; Maximum Metrics: Maximum metrics at their respective thresholds
+#&gt;                         metric threshold      value idx
+#&gt; 1                       max f1  0.364892   0.688525  33
+#&gt; 2                       max f2  0.305397   0.789474  43
+#&gt; 3                 max f0point5  0.364892   0.644172  33
+#&gt; 4                 max accuracy  0.364892   0.897297  33
+#&gt; 5                max precision  0.928331   1.000000   0
+#&gt; 6                   max recall  0.058914   1.000000 115
+#&gt; 7              max specificity  0.928331   1.000000   0
+#&gt; 8             max absolute_mcc  0.340155   0.635386  36
+#&gt; 9   max min_per_class_accuracy  0.305397   0.873418  43
+#&gt; 10 max mean_per_class_accuracy  0.305397   0.881153  43
+#&gt; 11                     max tns  0.928331 158.000000   0
+#&gt; 12                     max fns  0.928331  26.000000   0
+#&gt; 13                     max fps  0.001694 158.000000 184
+#&gt; 14                     max tps  0.058914  27.000000 115
+#&gt; 15                     max tnr  0.928331   1.000000   0
+#&gt; 16                     max fnr  0.928331   0.962963   0
+#&gt; 17                     max fpr  0.001694   1.000000 184
+#&gt; 18                     max tpr  0.058914   1.000000 115
+#&gt; 
+#&gt; Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
+#&gt; H2OBinomialMetrics: stackedensemble
+#&gt; ** Reported on cross-validation data. **
+#&gt; ** 5-fold cross-validation on training data (Metrics computed for combined holdout predictions) **
+#&gt; 
+#&gt; MSE:  0.09561189
+#&gt; RMSE:  0.3092117
+#&gt; LogLoss:  0.3302917
+#&gt; Mean Per-Class Error:  0.2601288
+#&gt; AUC:  0.8311379
+#&gt; AUCPR:  0.6050609
+#&gt; Gini:  0.6622758
+#&gt; 
+#&gt; Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
+#&gt;         No Yes    Error       Rate
+#&gt; No     848  44 0.049327    =44/892
+#&gt; Yes     81  91 0.470930    =81/172
+#&gt; Totals 929 135 0.117481  =125/1064
+#&gt; 
+#&gt; Maximum Metrics: Maximum metrics at their respective thresholds
+#&gt;                         metric threshold      value idx
+#&gt; 1                       max f1  0.378371   0.592834 106
+#&gt; 2                       max f2  0.186678   0.644841 203
+#&gt; 3                 max f0point5  0.380485   0.639368 104
+#&gt; 4                 max accuracy  0.380485   0.882519 104
+#&gt; 5                max precision  0.905703   1.000000   0
+#&gt; 6                   max recall  0.002584   1.000000 397
+#&gt; 7              max specificity  0.905703   1.000000   0
+#&gt; 8             max absolute_mcc  0.378371   0.530616 106
+#&gt; 9   max min_per_class_accuracy  0.180220   0.761628 208
+#&gt; 10 max mean_per_class_accuracy  0.186678   0.771405 203
+#&gt; 11                     max tns  0.905703 892.000000   0
+#&gt; 12                     max fns  0.905703 171.000000   0
+#&gt; 13                     max fps  0.001012 892.000000 399
+#&gt; 14                     max tps  0.002584 172.000000 397
+#&gt; 15                     max tnr  0.905703   1.000000   0
+#&gt; 16                     max fnr  0.905703   0.994186   0
+#&gt; 17                     max fpr  0.001012   1.000000 399
+#&gt; 18                     max tpr  0.002584   1.000000 397
+#&gt; 
+#&gt; Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
+#&gt; Cross-Validation Metrics Summary: 
+#&gt;                mean       sd cv_1_valid cv_2_valid cv_3_valid cv_4_valid
+#&gt; accuracy   0.882994 0.020516   0.885057   0.851163   0.902655   0.898734
+#&gt; auc        0.832872 0.021704   0.856107   0.815268   0.850269   0.806082
+#&gt; err        0.117006 0.020516   0.114943   0.148837   0.097345   0.101266
+#&gt; err_count 24.800000 4.604346  20.000000  32.000000  22.000000  24.000000
+#&gt; f0point5   0.638412 0.064718   0.598291   0.589744   0.744048   0.657143
+#&gt;           cv_5_valid
+#&gt; accuracy    0.877359
+#&gt; auc         0.836634
+#&gt; err         0.122642
+#&gt; err_count  26.000000
+#&gt; f0point5    0.602837
+#&gt; 
+#&gt; ---
+#&gt;                         mean        sd cv_1_valid cv_2_valid cv_3_valid
+#&gt; precision           0.653292  0.075788   0.608696   0.589744   0.781250
+#&gt; r2                  0.286808  0.041894   0.264491   0.249023   0.357675
+#&gt; recall              0.589408  0.055303   0.560000   0.589744   0.625000
+#&gt; residual_deviance 139.981250 23.218420 102.873400 160.974750 147.333650
+#&gt; rmse                0.309737  0.013784   0.300821   0.333936   0.305883
+#&gt; specificity         0.939156  0.019168   0.939597   0.909091   0.962366
+#&gt;                   cv_4_valid cv_5_valid
+#&gt; precision           0.657143   0.629630
+#&gt; r2                  0.278713   0.284138
+#&gt; recall              0.657143   0.515151
+#&gt; residual_deviance 155.457640 133.266780
+#&gt; rmse                0.301311   0.306734
+#&gt; specificity         0.940594   0.944134
+#&gt; 
+#&gt; $preprocess
+#&gt; function (x) 
+#&gt; x
+#&gt; &lt;bytecode: 0x000002230345ad10&gt;
+#&gt; &lt;environment: 0x000002230344f180&gt;
+#&gt; 
+#&gt; $bin_continuous
+#&gt; [1] TRUE
+#&gt; 
+#&gt; $n_bins
+#&gt; [1] 4
+#&gt; 
+#&gt; $quantile_bins
+#&gt; [1] TRUE
+#&gt; 
+#&gt; $use_density
+#&gt; [1] TRUE
+#&gt; 
+#&gt; $feature_type
+#&gt;                      Age           BusinessTravel                DailyRate 
+#&gt;                "numeric"                 "factor"                "numeric" 
+#&gt;               Department         DistanceFromHome                Education 
+#&gt;                 "factor"                "numeric"                 "factor" 
+#&gt;           EducationField           EmployeeNumber  EnvironmentSatisfaction 
+#&gt;                 "factor"                "numeric"                 "factor" 
+#&gt;                   Gender               HourlyRate           JobInvolvement 
+#&gt;                 "factor"                "numeric"                 "factor" 
+#&gt;                 JobLevel                  JobRole          JobSatisfaction 
+#&gt;                 "factor"                 "factor"                 "factor" 
+#&gt;            MaritalStatus            MonthlyIncome              MonthlyRate 
+#&gt;                 "factor"                "numeric"                "numeric" 
+#&gt;       NumCompaniesWorked                 OverTime        PercentSalaryHike 
+#&gt;                "numeric"                 "factor"                "numeric" 
+#&gt;        PerformanceRating RelationshipSatisfaction         StockOptionLevel 
+#&gt;                 "factor"                 "factor"                 "factor" 
+#&gt;        TotalWorkingYears    TrainingTimesLastYear          WorkLifeBalance 
+#&gt;                "numeric"                "numeric"                 "factor" 
+#&gt;           YearsAtCompany       YearsInCurrentRole  YearsSinceLastPromotion 
+#&gt;                "numeric"                "numeric"                "numeric" 
+#&gt;     YearsWithCurrManager 
+#&gt;                "numeric" 
+#&gt; 
+#&gt; $bin_cuts
+#&gt; $bin_cuts$Age
+#&gt;   0%  25%  50%  75% 100% 
+#&gt;   18   30   36   43   60 
+#&gt; 
+#&gt; $bin_cuts$BusinessTravel
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$DailyRate
+#&gt;   0%  25%  50%  75% 100% 
+#&gt;  102  469  799 1157 1499 
+#&gt; 
+#&gt; $bin_cuts$Department
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$DistanceFromHome
+#&gt;   0%  25%  50%  75% 100% 
+#&gt;    1    2    7   13   29 
+#&gt; 
+#&gt; $bin_cuts$Education
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$EducationField
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$EmployeeNumber
+#&gt;   0%  25%  50%  75% 100% 
+#&gt;    4  496 1016 1550 2068 
+#&gt; 
+#&gt; $bin_cuts$EnvironmentSatisfaction
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$Gender
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$HourlyRate
+#&gt;   0%  25%  50%  75% 100% 
+#&gt;   30   48   66   83  100 
+#&gt; 
+#&gt; $bin_cuts$JobInvolvement
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$JobLevel
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$JobRole
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$JobSatisfaction
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$MaritalStatus
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$MonthlyIncome
+#&gt;    0%   25%   50%   75%  100% 
+#&gt;  1009  2909  4941  8564 19999 
+#&gt; 
+#&gt; $bin_cuts$MonthlyRate
+#&gt;    0%   25%   50%   75%  100% 
+#&gt;  2094  8018 14363 20489 26999 
+#&gt; 
+#&gt; $bin_cuts$NumCompaniesWorked
+#&gt;   0%  25%  50%  75% 100% 
+#&gt;    0    1    2    4    9 
+#&gt; 
+#&gt; $bin_cuts$OverTime
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$PercentSalaryHike
+#&gt;   0%  25%  50%  75% 100% 
+#&gt;   11   12   14   18   25 
+#&gt; 
+#&gt; $bin_cuts$PerformanceRating
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$RelationshipSatisfaction
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$StockOptionLevel
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$TotalWorkingYears
+#&gt;   0%  25%  50%  75% 100% 
+#&gt;    0    6   10   15   40 
+#&gt; 
+#&gt; $bin_cuts$TrainingTimesLastYear
+#&gt;   0%  25%  50% 100% 
+#&gt;    0    2    3    6 
+#&gt; 
+#&gt; $bin_cuts$WorkLifeBalance
+#&gt; NULL
+#&gt; 
+#&gt; $bin_cuts$YearsAtCompany
+#&gt;   0%  25%  50%  75% 100% 
+#&gt;    0    3    5    9   40 
+#&gt; 
+#&gt; $bin_cuts$YearsInCurrentRole
+#&gt;   0%  25%  50%  75% 100% 
+#&gt;    0    2    3    7   18 
+#&gt; 
+#&gt; $bin_cuts$YearsSinceLastPromotion
+#&gt;   0%  50%  75% 100% 
+#&gt;    0    1    3   15 
+#&gt; 
+#&gt; $bin_cuts$YearsWithCurrManager
+#&gt;   0%  25%  50%  75% 100% 
+#&gt;    0    2    3    7   17 
+#&gt; 
+#&gt; 
+#&gt; $feature_distribution
+#&gt; $feature_distribution$Age
+#&gt; 
+#&gt;         1         2         3         4 
+#&gt; 0.2650120 0.2810248 0.2193755 0.2345877 
+#&gt; 
+#&gt; $feature_distribution$BusinessTravel
+#&gt; 
+#&gt;        Non-Travel Travel_Frequently     Travel_Rarely 
+#&gt;        0.09527622        0.19135308        0.71337070 
+#&gt; 
+#&gt; $feature_distribution$DailyRate
+#&gt; 
+#&gt;         1         2         3         4 
+#&gt; 0.2506005 0.2497998 0.2514011 0.2481986 
+#&gt; 
+#&gt; $feature_distribution$Department
+#&gt; 
+#&gt;        Human Resources Research &amp; Development                  Sales 
+#&gt;             0.04083267             0.65172138             0.30744596 
+#&gt; 
+#&gt; $feature_distribution$DistanceFromHome
+#&gt; 
+#&gt;         1         2         3         4 
+#&gt; 0.2906325 0.2369896 0.2233787 0.2489992 
+#&gt; 
+#&gt; $feature_distribution$Education
+#&gt; 
+#&gt; Below College       College      Bachelor        Master        Doctor 
+#&gt;     0.1216974     0.1913531     0.3835068     0.2698159     0.0336269 
+#&gt; 
+#&gt; $feature_distribution$EducationField
+#&gt; 
+#&gt;  Human Resources    Life Sciences        Marketing          Medical 
+#&gt;       0.01441153       0.41313050       0.11128903       0.31305044 
+#&gt;            Other Technical Degree 
+#&gt;       0.05604484       0.09207366 
+#&gt; 
+#&gt; $feature_distribution$EmployeeNumber
+#&gt; 
+#&gt;         1         2         3         4 
+#&gt; 0.2506005 0.2497998 0.2497998 0.2497998 
+#&gt; 
+#&gt; $feature_distribution$EnvironmentSatisfaction
+#&gt; 
+#&gt;       Low    Medium      High Very High 
+#&gt; 0.1929544 0.1977582 0.3066453 0.3026421 
+#&gt; 
+#&gt; $feature_distribution$Gender
+#&gt; 
+#&gt;   Female     Male 
+#&gt; 0.407526 0.592474 
+#&gt; 
+#&gt; $feature_distribution$HourlyRate
+#&gt; 
+#&gt;         1         2         3         4 
+#&gt; 0.2602082 0.2538030 0.2377902 0.2481986 
+#&gt; 
+#&gt; $feature_distribution$JobInvolvement
+#&gt; 
+#&gt;        Low     Medium       High  Very High 
+#&gt; 0.05444355 0.25620496 0.59247398 0.09687750 
+#&gt; 
+#&gt; $feature_distribution$JobLevel
+#&gt; 
+#&gt;          1          2          3          4          5 
+#&gt; 0.37309848 0.35468375 0.15452362 0.07285829 0.04483587 
+#&gt; 
+#&gt; $feature_distribution$JobRole
+#&gt; 
+#&gt; Healthcare Representative           Human Resources     Laboratory Technician 
+#&gt;                0.09207366                0.03282626                0.16973579 
+#&gt;                   Manager    Manufacturing Director         Research Director 
+#&gt;                0.07045637                0.10008006                0.05444355 
+#&gt;        Research Scientist           Sales Executive      Sales Representative 
+#&gt;                0.20096077                0.22017614                0.05924740 
+#&gt; 
+#&gt; $feature_distribution$JobSatisfaction
+#&gt; 
+#&gt;       Low    Medium      High Very High 
+#&gt; 0.1937550 0.1905524 0.3002402 0.3154524 
+#&gt; 
+#&gt; $feature_distribution$MaritalStatus
+#&gt; 
+#&gt;  Divorced   Married    Single 
+#&gt; 0.2201761 0.4555645 0.3242594 
+#&gt; 
+#&gt; $feature_distribution$MonthlyIncome
+#&gt; 
+#&gt;         1         2         3         4 
+#&gt; 0.2506005 0.2497998 0.2497998 0.2497998 
+#&gt; 
+#&gt; $feature_distribution$MonthlyRate
+#&gt; 
+#&gt;         1         2         3         4 
+#&gt; 0.2506005 0.2497998 0.2497998 0.2497998 
+#&gt; 
+#&gt; $feature_distribution$NumCompaniesWorked
+#&gt; 
+#&gt;         1         2         3         4 
+#&gt; 0.4907926 0.1000801 0.2009608 0.2081665 
+#&gt; 
+#&gt; $feature_distribution$OverTime
+#&gt; 
+#&gt;        No       Yes 
+#&gt; 0.7157726 0.2842274 
+#&gt; 
+#&gt; $feature_distribution$PercentSalaryHike
+#&gt; 
+#&gt;         1         2         3         4 
+#&gt; 0.2754203 0.2834267 0.2417934 0.1993595 
+#&gt; 
+#&gt; $feature_distribution$PerformanceRating
+#&gt; 
+#&gt;         Low        Good   Excellent Outstanding 
+#&gt;   0.0000000   0.0000000   0.8502802   0.1497198 
+#&gt; 
+#&gt; $feature_distribution$RelationshipSatisfaction
+#&gt; 
+#&gt;       Low    Medium      High Very High 
+#&gt; 0.1937550 0.2089672 0.3114492 0.2858287 
+#&gt; 
+#&gt; $feature_distribution$StockOptionLevel
+#&gt; 
+#&gt;          0          1          2          3 
+#&gt; 0.43074460 0.40592474 0.10568455 0.05764612 
+#&gt; 
+#&gt; $feature_distribution$TotalWorkingYears
+#&gt; 
+#&gt;         1         2         3         4 
+#&gt; 0.3002402 0.3274620 0.1329063 0.2393915 
+#&gt; 
+#&gt; $feature_distribution$TrainingTimesLastYear
+#&gt; 
+#&gt;         1         2         3 
+#&gt; 0.4539632 0.3266613 0.2193755 
+#&gt; 
+#&gt; $feature_distribution$WorkLifeBalance
+#&gt; 
+#&gt;        Bad       Good     Better       Best 
+#&gt; 0.05684548 0.23538831 0.60448359 0.10328263 
+#&gt; 
+#&gt; $feature_distribution$YearsAtCompany
+#&gt; 
+#&gt;         1         2         3         4 
+#&gt; 0.3218575 0.2097678 0.2193755 0.2489992 
+#&gt; 
+#&gt; $feature_distribution$YearsInCurrentRole
+#&gt; 
+#&gt;          1          2          3          4 
+#&gt; 0.45956765 0.09367494 0.27141713 0.17534027 
+#&gt; 
+#&gt; $feature_distribution$YearsSinceLastPromotion
+#&gt; 
+#&gt;         1         2         3 
+#&gt; 0.6389111 0.1481185 0.2129704 
+#&gt; 
+#&gt; $feature_distribution$YearsWithCurrManager
+#&gt; 
+#&gt;         1         2         3         4 
+#&gt; 0.4619696 0.0968775 0.2586069 0.1825460 
+#&gt; 
+#&gt; 
+#&gt; attr(,"class")
+#&gt; [1] "data_frame_explainer" "explainer"            "list"</code></pre>
+</div>
+</div>
+</section><section id="single-explanation-object-plot" class="level1" data-number="6"><h1 data-number="6">
+<span class="header-section-number">6</span> Single Explanation Object + Plot</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1"></a><span class="co"># Use only one item</span></span>
+<span id="cb42-2"><a href="#cb42-2"></a>test_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb42-3"><a href="#cb42-3"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb42-4"><a href="#cb42-4"></a>  <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; Rows: 1
+#&gt; Columns: 32
+#&gt; $ Age                      &lt;dbl&gt; 41
+#&gt; $ BusinessTravel           &lt;fct&gt; Travel_Rarely
+#&gt; $ DailyRate                &lt;dbl&gt; 1102
+#&gt; $ Department               &lt;fct&gt; Sales
+#&gt; $ DistanceFromHome         &lt;dbl&gt; 1
+#&gt; $ Education                &lt;fct&gt; College
+#&gt; $ EducationField           &lt;fct&gt; Life Sciences
+#&gt; $ EmployeeNumber           &lt;dbl&gt; 1
+#&gt; $ EnvironmentSatisfaction  &lt;fct&gt; Medium
+#&gt; $ Gender                   &lt;fct&gt; Female
+#&gt; $ HourlyRate               &lt;dbl&gt; 94
+#&gt; $ JobInvolvement           &lt;fct&gt; High
+#&gt; $ JobLevel                 &lt;fct&gt; 2
+#&gt; $ JobRole                  &lt;fct&gt; Sales Executive
+#&gt; $ JobSatisfaction          &lt;fct&gt; Very High
+#&gt; $ MaritalStatus            &lt;fct&gt; Single
+#&gt; $ MonthlyIncome            &lt;dbl&gt; 5993
+#&gt; $ MonthlyRate              &lt;dbl&gt; 19479
+#&gt; $ NumCompaniesWorked       &lt;dbl&gt; 8
+#&gt; $ OverTime                 &lt;fct&gt; Yes
+#&gt; $ PercentSalaryHike        &lt;dbl&gt; 11
+#&gt; $ PerformanceRating        &lt;fct&gt; Excellent
+#&gt; $ RelationshipSatisfaction &lt;fct&gt; Low
+#&gt; $ StockOptionLevel         &lt;fct&gt; 0
+#&gt; $ TotalWorkingYears        &lt;dbl&gt; 8
+#&gt; $ TrainingTimesLastYear    &lt;dbl&gt; 0
+#&gt; $ WorkLifeBalance          &lt;fct&gt; Bad
+#&gt; $ YearsAtCompany           &lt;dbl&gt; 6
+#&gt; $ YearsInCurrentRole       &lt;dbl&gt; 4
+#&gt; $ YearsSinceLastPromotion  &lt;dbl&gt; 0
+#&gt; $ YearsWithCurrManager     &lt;dbl&gt; 5
+#&gt; $ Attrition                &lt;fct&gt; Yes</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1"></a><span class="co"># Create explanation object</span></span>
+<span id="cb44-2"><a href="#cb44-2"></a>explanation <span class="ot">&lt;-</span> test_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb44-3"><a href="#cb44-3"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb44-4"><a href="#cb44-4"></a>  <span class="fu">select</span>(<span class="sc">-</span>Attrition) <span class="sc">%&gt;%</span></span>
+<span id="cb44-5"><a href="#cb44-5"></a>  lime<span class="sc">::</span><span class="fu">explain</span>(</span>
+<span id="cb44-6"><a href="#cb44-6"></a>    <span class="at">explainer =</span> explainer,</span>
+<span id="cb44-7"><a href="#cb44-7"></a>    <span class="co"># Because it is a binary classification model: 1</span></span>
+<span id="cb44-8"><a href="#cb44-8"></a>    <span class="at">n_labels   =</span> <span class="dv">1</span>,</span>
+<span id="cb44-9"><a href="#cb44-9"></a>    <span class="co"># number of features to be returned</span></span>
+<span id="cb44-10"><a href="#cb44-10"></a>    <span class="at">n_features =</span> <span class="dv">8</span>,</span>
+<span id="cb44-11"><a href="#cb44-11"></a>    <span class="co"># number of localized linear models</span></span>
+<span id="cb44-12"><a href="#cb44-12"></a>    <span class="at">n_permutations =</span> <span class="dv">5000</span>,</span>
+<span id="cb44-13"><a href="#cb44-13"></a>    <span class="co"># Let's start with 1</span></span>
+<span id="cb44-14"><a href="#cb44-14"></a>    <span class="at">kernel_width   =</span> <span class="dv">4</span></span>
+<span id="cb44-15"><a href="#cb44-15"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======================================================================| 100%
+#&gt; 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======================================================================| 100%</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1"></a>explanation</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div data-pagedtable="false">
+  <script data-pagedtable-source="" type="application/json">
+{"columns":[{"label":["model_type"],"name":[1],"type":["chr"],"align":["left"]},{"label":["case"],"name":[2],"type":["chr"],"align":["left"]},{"label":["label"],"name":[3],"type":["chr"],"align":["left"]},{"label":["label_prob"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["model_r2"],"name":[5],"type":["dbl"],"align":["right"]},{"label":["model_intercept"],"name":[6],"type":["dbl"],"align":["right"]},{"label":["model_prediction"],"name":[7],"type":["dbl"],"align":["right"]},{"label":["feature"],"name":[8],"type":["chr"],"align":["left"]},{"label":["feature_value"],"name":[9],"type":["dbl"],"align":["right"]},{"label":["feature_weight"],"name":[10],"type":["dbl"],"align":["right"]},{"label":["feature_desc"],"name":[11],"type":["chr"],"align":["left"]},{"label":["data"],"name":[12],"type":["list"],"align":["right"]},{"label":["prediction"],"name":[13],"type":["list"],"align":["right"]}],"data":[{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3375825","6":"0.1094082","7":"0.5079549","8":"OverTime","9":"2","10":"0.19094731","11":"OverTime = Yes","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3375825","6":"0.1094082","7":"0.5079549","8":"JobLevel","9":"2","10":"-0.09138265","11":"JobLevel = 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3375825","6":"0.1094082","7":"0.5079549","8":"NumCompaniesWorked","9":"8","10":"0.08983864","11":"4 < NumCompaniesWorked","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3375825","6":"0.1094082","7":"0.5079549","8":"RelationshipSatisfaction","9":"1","10":"0.07973281","11":"RelationshipSatisfaction = Low","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3375825","6":"0.1094082","7":"0.5079549","8":"WorkLifeBalance","9":"1","10":"0.05970675","11":"WorkLifeBalance = Bad","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3375825","6":"0.1094082","7":"0.5079549","8":"Department","9":"3","10":"0.06829111","11":"Department = Sales","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3375825","6":"0.1094082","7":"0.5079549","8":"StockOptionLevel","9":"1","10":"0.05815440","11":"StockOptionLevel = 0","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3375825","6":"0.1094082","7":"0.5079549","8":"YearsSinceLastPromotion","9":"0","10":"-0.05674165","11":"YearsSinceLastPromotion <= 1","12":"<named list [31]>","13":"<named list [2]>"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1"></a><span class="co"># Select relevant columns</span></span>
+<span id="cb47-2"><a href="#cb47-2"></a>explanation <span class="sc">%&gt;%</span></span>
+<span id="cb47-3"><a href="#cb47-3"></a>  <span class="fu">as.tibble</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb47-4"><a href="#cb47-4"></a>  <span class="fu">select</span>(feature<span class="sc">:</span>prediction) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div data-pagedtable="false">
+  <script data-pagedtable-source="" type="application/json">
+{"columns":[{"label":["feature"],"name":[1],"type":["chr"],"align":["left"]},{"label":["feature_value"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["feature_weight"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["feature_desc"],"name":[4],"type":["chr"],"align":["left"]},{"label":["data"],"name":[5],"type":["list"],"align":["right"]},{"label":["prediction"],"name":[6],"type":["list"],"align":["right"]}],"data":[{"1":"OverTime","2":"2","3":"0.19094731","4":"OverTime = Yes","5":"<named list [31]>","6":"<named list [2]>"},{"1":"JobLevel","2":"2","3":"-0.09138265","4":"JobLevel = 2","5":"<named list [31]>","6":"<named list [2]>"},{"1":"NumCompaniesWorked","2":"8","3":"0.08983864","4":"4 < NumCompaniesWorked","5":"<named list [31]>","6":"<named list [2]>"},{"1":"RelationshipSatisfaction","2":"1","3":"0.07973281","4":"RelationshipSatisfaction = Low","5":"<named list [31]>","6":"<named list [2]>"},{"1":"WorkLifeBalance","2":"1","3":"0.05970675","4":"WorkLifeBalance = Bad","5":"<named list [31]>","6":"<named list [2]>"},{"1":"Department","2":"3","3":"0.06829111","4":"Department = Sales","5":"<named list [31]>","6":"<named list [2]>"},{"1":"StockOptionLevel","2":"1","3":"0.05815440","4":"StockOptionLevel = 0","5":"<named list [31]>","6":"<named list [2]>"},{"1":"YearsSinceLastPromotion","2":"0","3":"-0.05674165","4":"YearsSinceLastPromotion <= 1","5":"<named list [31]>","6":"<named list [2]>"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb48"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1"></a><span class="co"># Plot features</span></span>
+<span id="cb48-2"><a href="#cb48-2"></a>g <span class="ot">&lt;-</span> <span class="fu">plot_features</span>(<span class="at">explanation =</span> explanation, <span class="at">ncol =</span> <span class="dv">1</span>)</span>
+<span id="cb48-3"><a href="#cb48-3"></a>g</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure"><p><a href="06_black_box_models_files/figure-html/unnamed-chunk-10-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1"><img src="06_black_box_models_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" width="672"></a></p>
+</figure>
+</div>
+</div>
+</div>
+</section><section id="multiple-explanation-object-plot" class="level1" data-number="7"><h1 data-number="7">
+<span class="header-section-number">7</span> Multiple Explanation Object + Plot</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1"></a><span class="co"># Create multiple explanation object</span></span>
+<span id="cb49-2"><a href="#cb49-2"></a>explanation <span class="ot">&lt;-</span> test_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb49-3"><a href="#cb49-3"></a>  <span class="fu">slice</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">20</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb49-4"><a href="#cb49-4"></a>  <span class="fu">select</span>(<span class="sc">-</span>Attrition) <span class="sc">%&gt;%</span></span>
+<span id="cb49-5"><a href="#cb49-5"></a>  lime<span class="sc">::</span><span class="fu">explain</span>(</span>
+<span id="cb49-6"><a href="#cb49-6"></a>    <span class="at">explainer =</span> explainer,</span>
+<span id="cb49-7"><a href="#cb49-7"></a>    <span class="at">n_labels   =</span> <span class="dv">1</span>,</span>
+<span id="cb49-8"><a href="#cb49-8"></a>    <span class="at">n_features =</span> <span class="dv">8</span>,</span>
+<span id="cb49-9"><a href="#cb49-9"></a>    <span class="at">n_permutations =</span> <span class="dv">5000</span>,</span>
+<span id="cb49-10"><a href="#cb49-10"></a>    <span class="at">kernel_width   =</span> <span class="fl">0.5</span></span>
+<span id="cb49-11"><a href="#cb49-11"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#&gt; 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======================================================================| 100%
+#&gt; 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======================================================================| 100%</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1"></a>explanation <span class="sc">%&gt;%</span></span>
+<span id="cb51-2"><a href="#cb51-2"></a>  <span class="fu">as.tibble</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div data-pagedtable="false">
+  <script data-pagedtable-source="" type="application/json">
+{"columns":[{"label":["model_type"],"name":[1],"type":["chr"],"align":["left"]},{"label":["case"],"name":[2],"type":["chr"],"align":["left"]},{"label":["label"],"name":[3],"type":["chr"],"align":["left"]},{"label":["label_prob"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["model_r2"],"name":[5],"type":["dbl"],"align":["right"]},{"label":["model_intercept"],"name":[6],"type":["dbl"],"align":["right"]},{"label":["model_prediction"],"name":[7],"type":["dbl"],"align":["right"]},{"label":["feature"],"name":[8],"type":["chr"],"align":["left"]},{"label":["feature_value"],"name":[9],"type":["dbl"],"align":["right"]},{"label":["feature_weight"],"name":[10],"type":["dbl"],"align":["right"]},{"label":["feature_desc"],"name":[11],"type":["chr"],"align":["left"]},{"label":["data"],"name":[12],"type":["list"],"align":["right"]},{"label":["prediction"],"name":[13],"type":["list"],"align":["right"]}],"data":[{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3433092","6":"0.11307830","7":"0.5147421","8":"OverTime","9":"2","10":"0.19852115","11":"OverTime = Yes","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3433092","6":"0.11307830","7":"0.5147421","8":"JobLevel","9":"2","10":"-0.09900067","11":"JobLevel = 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3433092","6":"0.11307830","7":"0.5147421","8":"RelationshipSatisfaction","9":"1","10":"0.08998233","11":"RelationshipSatisfaction = Low","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3433092","6":"0.11307830","7":"0.5147421","8":"NumCompaniesWorked","9":"8","10":"0.08394914","11":"4 < NumCompaniesWorked","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3433092","6":"0.11307830","7":"0.5147421","8":"Department","9":"3","10":"0.07018993","11":"Department = Sales","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3433092","6":"0.11307830","7":"0.5147421","8":"StockOptionLevel","9":"1","10":"0.06236924","11":"StockOptionLevel = 0","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3433092","6":"0.11307830","7":"0.5147421","8":"YearsSinceLastPromotion","9":"0","10":"-0.06103254","11":"YearsSinceLastPromotion <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"1","3":"Yes","4":"0.5725528","5":"0.3433092","6":"0.11307830","7":"0.5147421","8":"WorkLifeBalance","9":"1","10":"0.05668518","11":"WorkLifeBalance = Bad","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"2","3":"No","4":"0.9901285","5":"0.3892144","6":"0.56123699","7":"0.8863041","8":"OverTime","9":"1","10":"0.19365267","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"2","3":"No","4":"0.9901285","5":"0.3892144","6":"0.56123699","7":"0.8863041","8":"YearsAtCompany","9":"10","10":"-0.12194230","11":"9 < YearsAtCompany","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"2","3":"No","4":"0.9901285","5":"0.3892144","6":"0.56123699","7":"0.8863041","8":"JobLevel","9":"2","10":"0.09123970","11":"JobLevel = 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"2","3":"No","4":"0.9901285","5":"0.3892144","6":"0.56123699","7":"0.8863041","8":"BusinessTravel","9":"2","10":"-0.07474621","11":"BusinessTravel = Travel_Frequently","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"2","3":"No","4":"0.9901285","5":"0.3892144","6":"0.56123699","7":"0.8863041","8":"Department","9":"2","10":"0.06007090","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"2","3":"No","4":"0.9901285","5":"0.3892144","6":"0.56123699","7":"0.8863041","8":"NumCompaniesWorked","9":"1","10":"0.06201468","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"2","3":"No","4":"0.9901285","5":"0.3892144","6":"0.56123699","7":"0.8863041","8":"YearsSinceLastPromotion","9":"1","10":"0.06231065","11":"YearsSinceLastPromotion <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"2","3":"No","4":"0.9901285","5":"0.3892144","6":"0.56123699","7":"0.8863041","8":"StockOptionLevel","9":"2","10":"0.05246698","11":"StockOptionLevel = 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"3","3":"No","4":"0.6516236","5":"0.3707582","6":"0.74637862","7":"0.6485181","8":"OverTime","9":"1","10":"0.19420983","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"3","3":"No","4":"0.6516236","5":"0.3707582","6":"0.74637862","7":"0.6485181","8":"EnvironmentSatisfaction","9":"1","10":"-0.13140690","11":"EnvironmentSatisfaction = Low","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"3","3":"No","4":"0.6516236","5":"0.3707582","6":"0.74637862","7":"0.6485181","8":"NumCompaniesWorked","9":"9","10":"-0.08796916","11":"4 < NumCompaniesWorked","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"3","3":"No","4":"0.6516236","5":"0.3707582","6":"0.74637862","7":"0.6485181","8":"JobLevel","9":"1","10":"-0.07154811","11":"JobLevel = 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"3","3":"No","4":"0.6516236","5":"0.3707582","6":"0.74637862","7":"0.6485181","8":"YearsWithCurrManager","9":"2","10":"-0.06656567","11":"YearsWithCurrManager <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"3","3":"No","4":"0.6516236","5":"0.3707582","6":"0.74637862","7":"0.6485181","8":"Department","9":"2","10":"0.06241999","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"3","3":"No","4":"0.6516236","5":"0.3707582","6":"0.74637862","7":"0.6485181","8":"YearsAtCompany","9":"2","10":"0.05310705","11":"YearsAtCompany <= 3","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"3","3":"No","4":"0.6516236","5":"0.3707582","6":"0.74637862","7":"0.6485181","8":"YearsInCurrentRole","9":"2","10":"-0.05010754","11":"YearsInCurrentRole <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"4","3":"No","4":"0.6003801","5":"0.3498225","6":"0.93679738","7":"0.5048227","8":"OverTime","9":"2","10":"-0.20185893","11":"OverTime = Yes","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"4","3":"No","4":"0.6003801","5":"0.3498225","6":"0.93679738","7":"0.5048227","8":"RelationshipSatisfaction","9":"1","10":"-0.10035214","11":"RelationshipSatisfaction = Low","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"4","3":"No","4":"0.6003801","5":"0.3498225","6":"0.93679738","7":"0.5048227","8":"YearsAtCompany","9":"1","10":"0.06688031","11":"YearsAtCompany <= 3","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"4","3":"No","4":"0.6003801","5":"0.3498225","6":"0.93679738","7":"0.5048227","8":"JobLevel","9":"1","10":"-0.06779486","11":"JobLevel = 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"4","3":"No","4":"0.6003801","5":"0.3498225","6":"0.93679738","7":"0.5048227","8":"YearsWithCurrManager","9":"0","10":"-0.06705141","11":"YearsWithCurrManager <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"4","3":"No","4":"0.6003801","5":"0.3498225","6":"0.93679738","7":"0.5048227","8":"YearsInCurrentRole","9":"0","10":"-0.05642007","11":"YearsInCurrentRole <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"4","3":"No","4":"0.6003801","5":"0.3498225","6":"0.93679738","7":"0.5048227","8":"JobSatisfaction","9":"1","10":"-0.05648478","11":"JobSatisfaction = Low","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"4","3":"No","4":"0.6003801","5":"0.3498225","6":"0.93679738","7":"0.5048227","8":"YearsSinceLastPromotion","9":"0","10":"0.05110724","11":"YearsSinceLastPromotion <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"5","3":"No","4":"0.8752897","5":"0.3735661","6":"0.76886889","7":"0.7801066","8":"OverTime","9":"2","10":"-0.20333175","11":"OverTime = Yes","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"5","3":"No","4":"0.8752897","5":"0.3735661","6":"0.76886889","7":"0.7801066","8":"YearsWithCurrManager","9":"8","10":"0.09560850","11":"7 < YearsWithCurrManager","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"5","3":"No","4":"0.8752897","5":"0.3735661","6":"0.76886889","7":"0.7801066","8":"JobLevel","9":"2","10":"0.09400383","11":"JobLevel = 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"5","3":"No","4":"0.8752897","5":"0.3735661","6":"0.76886889","7":"0.7801066","8":"DistanceFromHome","9":"15","10":"-0.08235958","11":"13 < DistanceFromHome","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"5","3":"No","4":"0.8752897","5":"0.3735661","6":"0.76886889","7":"0.7801066","8":"Department","9":"2","10":"0.07008128","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"5","3":"No","4":"0.8752897","5":"0.3735661","6":"0.76886889","7":"0.7801066","8":"StockOptionLevel","9":"1","10":"-0.06575647","11":"StockOptionLevel = 0","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"5","3":"No","4":"0.8752897","5":"0.3735661","6":"0.76886889","7":"0.7801066","8":"YearsSinceLastPromotion","9":"0","10":"0.05352065","11":"YearsSinceLastPromotion <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"5","3":"No","4":"0.8752897","5":"0.3735661","6":"0.76886889","7":"0.7801066","8":"NumCompaniesWorked","9":"0","10":"0.04947130","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"6","3":"No","4":"0.9585985","5":"0.3262592","6":"0.67174647","7":"0.7950270","8":"OverTime","9":"1","10":"0.20287985","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"6","3":"No","4":"0.9585985","5":"0.3262592","6":"0.67174647","7":"0.7950270","8":"DistanceFromHome","9":"19","10":"-0.07911090","11":"13 < DistanceFromHome","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"6","3":"No","4":"0.9585985","5":"0.3262592","6":"0.67174647","7":"0.7950270","8":"YearsWithCurrManager","9":"2","10":"-0.06460780","11":"YearsWithCurrManager <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"6","3":"No","4":"0.9585985","5":"0.3262592","6":"0.67174647","7":"0.7950270","8":"YearsAtCompany","9":"2","10":"0.06436165","11":"YearsAtCompany <= 3","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"6","3":"No","4":"0.9585985","5":"0.3262592","6":"0.67174647","7":"0.7950270","8":"JobLevel","9":"1","10":"-0.05798057","11":"JobLevel = 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"6","3":"No","4":"0.9585985","5":"0.3262592","6":"0.67174647","7":"0.7950270","8":"Department","9":"2","10":"0.05945953","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"6","3":"No","4":"0.9585985","5":"0.3262592","6":"0.67174647","7":"0.7950270","8":"MonthlyIncome","9":"2661","10":"-0.05972235","11":"MonthlyIncome <= 2909","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"6","3":"No","4":"0.9585985","5":"0.3262592","6":"0.67174647","7":"0.7950270","8":"NumCompaniesWorked","9":"0","10":"0.05800111","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"7","3":"Yes","4":"0.7887870","5":"0.3283590","6":"0.04787459","7":"0.5736344","8":"OverTime","9":"2","10":"0.19955809","11":"OverTime = Yes","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"7","3":"Yes","4":"0.7887870","5":"0.3283590","6":"0.04787459","7":"0.5736344","8":"NumCompaniesWorked","9":"5","10":"0.08814803","11":"4 < NumCompaniesWorked","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"7","3":"Yes","4":"0.7887870","5":"0.3283590","6":"0.04787459","7":"0.5736344","8":"DistanceFromHome","9":"24","10":"0.06875746","11":"13 < DistanceFromHome","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"7","3":"Yes","4":"0.7887870","5":"0.3283590","6":"0.04787459","7":"0.5736344","8":"JobLevel","9":"1","10":"0.06604998","11":"JobLevel = 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"7","3":"Yes","4":"0.7887870","5":"0.3283590","6":"0.04787459","7":"0.5736344","8":"Department","9":"2","10":"-0.06857849","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"7","3":"Yes","4":"0.7887870","5":"0.3283590","6":"0.04787459","7":"0.5736344","8":"StockOptionLevel","9":"1","10":"0.06261915","11":"StockOptionLevel = 0","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"7","3":"Yes","4":"0.7887870","5":"0.3283590","6":"0.04787459","7":"0.5736344","8":"MonthlyIncome","9":"2028","10":"0.05971284","11":"MonthlyIncome <= 2909","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"7","3":"Yes","4":"0.7887870","5":"0.3283590","6":"0.04787459","7":"0.5736344","8":"YearsInCurrentRole","9":"2","10":"0.04949278","11":"YearsInCurrentRole <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"8","3":"No","4":"0.8021637","5":"0.3202597","6":"0.81569452","7":"0.6706087","8":"OverTime","9":"2","10":"-0.19572674","11":"OverTime = Yes","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"8","3":"No","4":"0.8021637","5":"0.3202597","6":"0.81569452","7":"0.6706087","8":"DistanceFromHome","9":"16","10":"-0.07002782","11":"13 < DistanceFromHome","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"8","3":"No","4":"0.8021637","5":"0.3202597","6":"0.81569452","7":"0.6706087","8":"JobLevel","9":"1","10":"-0.06114062","11":"JobLevel = 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"8","3":"No","4":"0.8021637","5":"0.3202597","6":"0.81569452","7":"0.6706087","8":"Department","9":"2","10":"0.06236278","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"8","3":"No","4":"0.8021637","5":"0.3202597","6":"0.81569452","7":"0.6706087","8":"YearsAtCompany","9":"1","10":"0.06215932","11":"YearsAtCompany <= 3","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"8","3":"No","4":"0.8021637","5":"0.3202597","6":"0.81569452","7":"0.6706087","8":"NumCompaniesWorked","9":"1","10":"0.05622698","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"8","3":"No","4":"0.8021637","5":"0.3202597","6":"0.81569452","7":"0.6706087","8":"YearsSinceLastPromotion","9":"0","10":"0.05465414","11":"YearsSinceLastPromotion <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"8","3":"No","4":"0.8021637","5":"0.3202597","6":"0.81569452","7":"0.6706087","8":"YearsWithCurrManager","9":"0","10":"-0.05359382","11":"YearsWithCurrManager <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"9","3":"No","4":"0.9982498","5":"0.3784012","6":"0.64350468","7":"0.9867833","8":"OverTime","9":"1","10":"0.18362626","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"9","3":"No","4":"0.9982498","5":"0.3784012","6":"0.64350468","7":"0.9867833","8":"YearsAtCompany","9":"14","10":"-0.11898156","11":"9 < YearsAtCompany","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"9","3":"No","4":"0.9982498","5":"0.3784012","6":"0.64350468","7":"0.9867833","8":"YearsWithCurrManager","9":"8","10":"0.08560035","11":"7 < YearsWithCurrManager","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"9","3":"No","4":"0.9982498","5":"0.3784012","6":"0.64350468","7":"0.9867833","8":"YearsInCurrentRole","9":"13","10":"0.08459085","11":"7 < YearsInCurrentRole","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"9","3":"No","4":"0.9982498","5":"0.3784012","6":"0.64350468","7":"0.9867833","8":"YearsSinceLastPromotion","9":"4","10":"-0.07347834","11":"3 < YearsSinceLastPromotion","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"9","3":"No","4":"0.9982498","5":"0.3784012","6":"0.64350468","7":"0.9867833","8":"TotalWorkingYears","9":"26","10":"0.06698373","11":"15 < TotalWorkingYears","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"9","3":"No","4":"0.9982498","5":"0.3784012","6":"0.64350468","7":"0.9867833","8":"MonthlyIncome","9":"19094","10":"0.06297702","11":"8564 < MonthlyIncome","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"9","3":"No","4":"0.9982498","5":"0.3784012","6":"0.64350468","7":"0.9867833","8":"Department","9":"2","10":"0.05196026","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"10","3":"No","4":"0.9717582","5":"0.3344768","6":"0.64204819","7":"0.8771117","8":"OverTime","9":"1","10":"0.19309221","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"10","3":"No","4":"0.9717582","5":"0.3344768","6":"0.64204819","7":"0.8771117","8":"JobLevel","9":"2","10":"0.09859154","11":"JobLevel = 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"10","3":"No","4":"0.9717582","5":"0.3344768","6":"0.64204819","7":"0.8771117","8":"YearsSinceLastPromotion","9":"4","10":"-0.08409318","11":"3 < YearsSinceLastPromotion","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"10","3":"No","4":"0.9717582","5":"0.3344768","6":"0.64204819","7":"0.8771117","8":"Department","9":"3","10":"-0.06941144","11":"Department = Sales","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"10","3":"No","4":"0.9717582","5":"0.3344768","6":"0.64204819","7":"0.8771117","8":"NumCompaniesWorked","9":"0","10":"0.05960465","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"10","3":"No","4":"0.9717582","5":"0.3344768","6":"0.64204819","7":"0.8771117","8":"YearsWithCurrManager","9":"2","10":"-0.05743530","11":"YearsWithCurrManager <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"10","3":"No","4":"0.9717582","5":"0.3344768","6":"0.64204819","7":"0.8771117","8":"StockOptionLevel","9":"2","10":"0.04821981","11":"StockOptionLevel = 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"10","3":"No","4":"0.9717582","5":"0.3344768","6":"0.64204819","7":"0.8771117","8":"EnvironmentSatisfaction","9":"3","10":"0.04649525","11":"EnvironmentSatisfaction = High","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"11","3":"No","4":"0.9931418","5":"0.2846675","6":"0.60338298","7":"0.9368253","8":"OverTime","9":"1","10":"0.19948365","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"11","3":"No","4":"0.9931418","5":"0.2846675","6":"0.60338298","7":"0.9368253","8":"JobLevel","9":"1","10":"-0.05760169","11":"JobLevel = 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"11","3":"No","4":"0.9931418","5":"0.2846675","6":"0.60338298","7":"0.9368253","8":"YearsSinceLastPromotion","9":"1","10":"0.05700826","11":"YearsSinceLastPromotion <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"11","3":"No","4":"0.9931418","5":"0.2846675","6":"0.60338298","7":"0.9368253","8":"Department","9":"2","10":"0.05151134","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"11","3":"No","4":"0.9931418","5":"0.2846675","6":"0.60338298","7":"0.9368253","8":"MonthlyIncome","9":"2645","10":"-0.05379921","11":"MonthlyIncome <= 2909","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"11","3":"No","4":"0.9931418","5":"0.2846675","6":"0.60338298","7":"0.9368253","8":"StockOptionLevel","9":"3","10":"0.04593568","11":"StockOptionLevel = 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"11","3":"No","4":"0.9931418","5":"0.2846675","6":"0.60338298","7":"0.9368253","8":"NumCompaniesWorked","9":"1","10":"0.04755953","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"11","3":"No","4":"0.9931418","5":"0.2846675","6":"0.60338298","7":"0.9368253","8":"DistanceFromHome","9":"2","10":"0.04334476","11":"DistanceFromHome <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"12","3":"No","4":"0.8442014","5":"0.3130971","6":"0.69114346","7":"0.8287446","8":"OverTime","9":"1","10":"0.19817759","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"12","3":"No","4":"0.8442014","5":"0.3130971","6":"0.69114346","7":"0.8287446","8":"BusinessTravel","9":"2","10":"-0.07825076","11":"BusinessTravel = Travel_Frequently","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"12","3":"No","4":"0.8442014","5":"0.3130971","6":"0.69114346","7":"0.8287446","8":"MonthlyIncome","9":"8726","10":"0.06861448","11":"8564 < MonthlyIncome","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"12","3":"No","4":"0.8442014","5":"0.3130971","6":"0.69114346","7":"0.8287446","8":"StockOptionLevel","9":"1","10":"-0.06973829","11":"StockOptionLevel = 0","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"12","3":"No","4":"0.8442014","5":"0.3130971","6":"0.69114346","7":"0.8287446","8":"YearsInCurrentRole","9":"8","10":"0.06940860","11":"7 < YearsInCurrentRole","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"12","3":"No","4":"0.8442014","5":"0.3130971","6":"0.69114346","7":"0.8287446","8":"NumCompaniesWorked","9":"1","10":"0.05205341","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"12","3":"No","4":"0.8442014","5":"0.3130971","6":"0.69114346","7":"0.8287446","8":"Department","9":"3","10":"-0.05302607","11":"Department = Sales","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"12","3":"No","4":"0.8442014","5":"0.3130971","6":"0.69114346","7":"0.8287446","8":"JobLevel","9":"3","10":"-0.04963777","11":"JobLevel = 3","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"13","3":"No","4":"0.9818493","5":"0.4089547","6":"0.63304474","7":"0.9795369","8":"OverTime","9":"1","10":"0.19540043","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"13","3":"No","4":"0.9818493","5":"0.4089547","6":"0.63304474","7":"0.9795369","8":"YearsAtCompany","9":"22","10":"-0.13487993","11":"9 < YearsAtCompany","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"13","3":"No","4":"0.9818493","5":"0.4089547","6":"0.63304474","7":"0.9795369","8":"YearsInCurrentRole","9":"15","10":"0.08271859","11":"7 < YearsInCurrentRole","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"13","3":"No","4":"0.9818493","5":"0.4089547","6":"0.63304474","7":"0.9795369","8":"YearsWithCurrManager","9":"8","10":"0.08411998","11":"7 < YearsWithCurrManager","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"13","3":"No","4":"0.9818493","5":"0.4089547","6":"0.63304474","7":"0.9795369","8":"YearsSinceLastPromotion","9":"15","10":"-0.08602386","11":"3 < YearsSinceLastPromotion","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"13","3":"No","4":"0.9818493","5":"0.4089547","6":"0.63304474","7":"0.9795369","8":"TotalWorkingYears","9":"23","10":"0.07177487","11":"15 < TotalWorkingYears","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"13","3":"No","4":"0.9818493","5":"0.4089547","6":"0.63304474","7":"0.9795369","8":"MonthlyIncome","9":"19545","10":"0.06610344","11":"8564 < MonthlyIncome","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"13","3":"No","4":"0.9818493","5":"0.4089547","6":"0.63304474","7":"0.9795369","8":"NumCompaniesWorked","9":"1","10":"0.06727866","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"14","3":"No","4":"0.8914799","5":"0.3683674","6":"0.68172577","7":"0.8236673","8":"OverTime","9":"1","10":"0.20924134","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"14","3":"No","4":"0.8914799","5":"0.3683674","6":"0.68172577","7":"0.8236673","8":"JobLevel","9":"2","10":"0.09260842","11":"JobLevel = 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"14","3":"No","4":"0.8914799","5":"0.3683674","6":"0.68172577","7":"0.8236673","8":"YearsSinceLastPromotion","9":"8","10":"-0.07829128","11":"3 < YearsSinceLastPromotion","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"14","3":"No","4":"0.8914799","5":"0.3683674","6":"0.68172577","7":"0.8236673","8":"DistanceFromHome","9":"23","10":"-0.07858869","11":"13 < DistanceFromHome","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"14","3":"No","4":"0.8914799","5":"0.3683674","6":"0.68172577","7":"0.8236673","8":"Department","9":"3","10":"-0.07140415","11":"Department = Sales","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"14","3":"No","4":"0.8914799","5":"0.3683674","6":"0.68172577","7":"0.8236673","8":"BusinessTravel","9":"1","10":"0.06709695","11":"BusinessTravel = Non-Travel","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"14","3":"No","4":"0.8914799","5":"0.3683674","6":"0.68172577","7":"0.8236673","8":"StockOptionLevel","9":"1","10":"-0.06089223","11":"StockOptionLevel = 0","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"14","3":"No","4":"0.8914799","5":"0.3683674","6":"0.68172577","7":"0.8236673","8":"NumCompaniesWorked","9":"0","10":"0.06217112","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"15","3":"No","4":"0.9610224","5":"0.3264584","6":"0.69121898","7":"0.8162312","8":"OverTime","9":"1","10":"0.19457232","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"15","3":"No","4":"0.9610224","5":"0.3264584","6":"0.69121898","7":"0.8162312","8":"JobLevel","9":"1","10":"-0.06465254","11":"JobLevel = 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"15","3":"No","4":"0.9610224","5":"0.3264584","6":"0.69121898","7":"0.8162312","8":"StockOptionLevel","9":"1","10":"-0.06099710","11":"StockOptionLevel = 0","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"15","3":"No","4":"0.9610224","5":"0.3264584","6":"0.69121898","7":"0.8162312","8":"NumCompaniesWorked","9":"1","10":"0.06031172","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"15","3":"No","4":"0.9610224","5":"0.3264584","6":"0.69121898","7":"0.8162312","8":"YearsWithCurrManager","9":"1","10":"-0.06036439","11":"YearsWithCurrManager <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"15","3":"No","4":"0.9610224","5":"0.3264584","6":"0.69121898","7":"0.8162312","8":"YearsAtCompany","9":"1","10":"0.05761671","11":"YearsAtCompany <= 3","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"15","3":"No","4":"0.9610224","5":"0.3264584","6":"0.69121898","7":"0.8162312","8":"MonthlyIncome","9":"2269","10":"-0.05399483","11":"MonthlyIncome <= 2909","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"15","3":"No","4":"0.9610224","5":"0.3264584","6":"0.69121898","7":"0.8162312","8":"Department","9":"2","10":"0.05252029","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"16","3":"Yes","4":"0.5305090","5":"0.3217245","6":"0.11721398","7":"0.3768420","8":"OverTime","9":"2","10":"0.20826414","11":"OverTime = Yes","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"16","3":"Yes","4":"0.5305090","5":"0.3217245","6":"0.11721398","7":"0.3768420","8":"Department","9":"2","10":"-0.06407741","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"16","3":"Yes","4":"0.5305090","5":"0.3217245","6":"0.11721398","7":"0.3768420","8":"JobLevel","9":"1","10":"0.06193147","11":"JobLevel = 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"16","3":"Yes","4":"0.5305090","5":"0.3217245","6":"0.11721398","7":"0.3768420","8":"YearsAtCompany","9":"2","10":"-0.06219157","11":"YearsAtCompany <= 3","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"16","3":"Yes","4":"0.5305090","5":"0.3217245","6":"0.11721398","7":"0.3768420","8":"NumCompaniesWorked","9":"1","10":"-0.05760257","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"16","3":"Yes","4":"0.5305090","5":"0.3217245","6":"0.11721398","7":"0.3768420","8":"StockOptionLevel","9":"1","10":"0.05782027","11":"StockOptionLevel = 0","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"16","3":"Yes","4":"0.5305090","5":"0.3217245","6":"0.11721398","7":"0.3768420","8":"YearsInCurrentRole","9":"2","10":"0.05908240","11":"YearsInCurrentRole <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"16","3":"Yes","4":"0.5305090","5":"0.3217245","6":"0.11721398","7":"0.3768420","8":"YearsWithCurrManager","9":"2","10":"0.05640125","11":"YearsWithCurrManager <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"17","3":"No","4":"0.7946065","5":"0.3248528","6":"0.67145789","7":"0.7920608","8":"OverTime","9":"1","10":"0.19150096","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"17","3":"No","4":"0.7946065","5":"0.3248528","6":"0.67145789","7":"0.7920608","8":"BusinessTravel","9":"2","10":"-0.08312748","11":"BusinessTravel = Travel_Frequently","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"17","3":"No","4":"0.7946065","5":"0.3248528","6":"0.67145789","7":"0.7920608","8":"YearsAtCompany","9":"3","10":"0.06023917","11":"YearsAtCompany <= 3","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"17","3":"No","4":"0.7946065","5":"0.3248528","6":"0.67145789","7":"0.7920608","8":"Department","9":"2","10":"0.06535331","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"17","3":"No","4":"0.7946065","5":"0.3248528","6":"0.67145789","7":"0.7920608","8":"YearsWithCurrManager","9":"2","10":"-0.05833903","11":"YearsWithCurrManager <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"17","3":"No","4":"0.7946065","5":"0.3248528","6":"0.67145789","7":"0.7920608","8":"JobLevel","9":"1","10":"-0.06011362","11":"JobLevel = 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"17","3":"No","4":"0.7946065","5":"0.3248528","6":"0.67145789","7":"0.7920608","8":"YearsSinceLastPromotion","9":"1","10":"0.05948789","11":"YearsSinceLastPromotion <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"17","3":"No","4":"0.7946065","5":"0.3248528","6":"0.67145789","7":"0.7920608","8":"YearsInCurrentRole","9":"2","10":"-0.05439826","11":"YearsInCurrentRole <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"18","3":"No","4":"0.9963897","5":"0.3720006","6":"0.55563684","7":"1.0132765","8":"OverTime","9":"1","10":"0.19519535","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"18","3":"No","4":"0.9963897","5":"0.3720006","6":"0.55563684","7":"1.0132765","8":"YearsAtCompany","9":"10","10":"-0.12004465","11":"9 < YearsAtCompany","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"18","3":"No","4":"0.9963897","5":"0.3720006","6":"0.55563684","7":"1.0132765","8":"JobLevel","9":"2","10":"0.09195783","11":"JobLevel = 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"18","3":"No","4":"0.9963897","5":"0.3720006","6":"0.55563684","7":"1.0132765","8":"YearsWithCurrManager","9":"9","10":"0.08768404","11":"7 < YearsWithCurrManager","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"18","3":"No","4":"0.9963897","5":"0.3720006","6":"0.55563684","7":"1.0132765","8":"Department","9":"2","10":"0.05776824","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"18","3":"No","4":"0.9963897","5":"0.3720006","6":"0.55563684","7":"1.0132765","8":"NumCompaniesWorked","9":"1","10":"0.04918242","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"18","3":"No","4":"0.9963897","5":"0.3720006","6":"0.55563684","7":"1.0132765","8":"YearsSinceLastPromotion","9":"0","10":"0.04723025","11":"YearsSinceLastPromotion <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"18","3":"No","4":"0.9963897","5":"0.3720006","6":"0.55563684","7":"1.0132765","8":"DistanceFromHome","9":"1","10":"0.04866622","11":"DistanceFromHome <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"19","3":"No","4":"0.9460011","5":"0.3630775","6":"0.61011584","7":"0.8493209","8":"OverTime","9":"1","10":"0.19752723","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"19","3":"No","4":"0.9460011","5":"0.3630775","6":"0.61011584","7":"0.8493209","8":"EnvironmentSatisfaction","9":"1","10":"-0.10980477","11":"EnvironmentSatisfaction = Low","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"19","3":"No","4":"0.9460011","5":"0.3630775","6":"0.61011584","7":"0.8493209","8":"JobLevel","9":"2","10":"0.09335829","11":"JobLevel = 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"19","3":"No","4":"0.9460011","5":"0.3630775","6":"0.61011584","7":"0.8493209","8":"StockOptionLevel","9":"1","10":"-0.06056801","11":"StockOptionLevel = 0","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"19","3":"No","4":"0.9460011","5":"0.3630775","6":"0.61011584","7":"0.8493209","8":"YearsSinceLastPromotion","9":"1","10":"0.06066654","11":"YearsSinceLastPromotion <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"19","3":"No","4":"0.9460011","5":"0.3630775","6":"0.61011584","7":"0.8493209","8":"NumCompaniesWorked","9":"1","10":"0.05531028","11":"NumCompaniesWorked <= 1","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"19","3":"No","4":"0.9460011","5":"0.3630775","6":"0.61011584","7":"0.8493209","8":"Department","9":"2","10":"0.05689193","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"19","3":"No","4":"0.9460011","5":"0.3630775","6":"0.61011584","7":"0.8493209","8":"YearsInCurrentRole","9":"2","10":"-0.05417648","11":"YearsInCurrentRole <= 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"20","3":"No","4":"0.9793122","5":"0.4235090","6":"0.64860689","7":"0.8675641","8":"OverTime","9":"1","10":"0.18748552","11":"OverTime = No","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"20","3":"No","4":"0.9793122","5":"0.4235090","6":"0.64860689","7":"0.8675641","8":"YearsAtCompany","9":"11","10":"-0.12693053","11":"9 < YearsAtCompany","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"20","3":"No","4":"0.9793122","5":"0.4235090","6":"0.64860689","7":"0.8675641","8":"JobLevel","9":"2","10":"0.09486336","11":"JobLevel = 2","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"20","3":"No","4":"0.9793122","5":"0.4235090","6":"0.64860689","7":"0.8675641","8":"YearsWithCurrManager","9":"8","10":"0.08943128","11":"7 < YearsWithCurrManager","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"20","3":"No","4":"0.9793122","5":"0.4235090","6":"0.64860689","7":"0.8675641","8":"YearsInCurrentRole","9":"10","10":"0.08255358","11":"7 < YearsInCurrentRole","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"20","3":"No","4":"0.9793122","5":"0.4235090","6":"0.64860689","7":"0.8675641","8":"RelationshipSatisfaction","9":"1","10":"-0.08736451","11":"RelationshipSatisfaction = Low","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"20","3":"No","4":"0.9793122","5":"0.4235090","6":"0.64860689","7":"0.8675641","8":"YearsSinceLastPromotion","9":"10","10":"-0.08226747","11":"3 < YearsSinceLastPromotion","12":"<named list [31]>","13":"<named list [2]>"},{"1":"classification","2":"20","3":"No","4":"0.9793122","5":"0.4235090","6":"0.64860689","7":"0.8675641","8":"Department","9":"2","10":"0.06118603","11":"Department = Research & Development","12":"<named list [31]>","13":"<named list [2]>"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb52"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1"></a><span class="co"># Plot the features</span></span>
+<span id="cb52-2"><a href="#cb52-2"></a><span class="co"># It can be seen that this plot is quite big and has lots of information</span></span>
+<span id="cb52-3"><a href="#cb52-3"></a><span class="fu">plot_features</span>(explanation, <span class="at">ncol =</span> <span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure"><p><a href="06_black_box_models_files/figure-html/unnamed-chunk-11-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2"><img src="06_black_box_models_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="672"></a></p>
+</figure>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb53"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1"></a><span class="co"># Plot the explanations</span></span>
+<span id="cb53-2"><a href="#cb53-2"></a><span class="co"># Plot is more condensed than the previous one, and preferably used</span></span>
+<span id="cb53-3"><a href="#cb53-3"></a><span class="fu">plot_explanations</span>(explanation)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure"><p><a href="06_black_box_models_files/figure-html/unnamed-chunk-11-2.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="06_black_box_models_files/figure-html/unnamed-chunk-11-2.png" class="img-fluid figure-img" width="672"></a></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="code-plot-features-method" class="level3"><h3 class="anchored" data-anchor-id="code-plot-features-method">Code plot features method</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb54"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1"></a><span class="co"># Create a label formatter that removes underscores and make label title casing</span></span>
+<span id="cb54-2"><a href="#cb54-2"></a>custom_labeller <span class="ot">&lt;-</span> <span class="cf">function</span>(labels, <span class="at">multi_line =</span> <span class="cn">TRUE</span>, <span class="at">sep =</span> <span class="st">': '</span>) {</span>
+<span id="cb54-3"><a href="#cb54-3"></a>  <span class="fu">gsub</span>(<span class="st">"_"</span>, <span class="st">" "</span>, <span class="fu">names</span>(labels))</span>
+<span id="cb54-4"><a href="#cb54-4"></a>  <span class="fu">names</span>(labels) <span class="ot">&lt;-</span> tools<span class="sc">::</span><span class="fu">toTitleCase</span>(</span>
+<span id="cb54-5"><a href="#cb54-5"></a>    <span class="fu">gsub</span>(<span class="st">"_"</span>, <span class="st">" "</span>, <span class="fu">names</span>(labels))</span>
+<span id="cb54-6"><a href="#cb54-6"></a>  )</span>
+<span id="cb54-7"><a href="#cb54-7"></a>  <span class="fu">label_both</span>(labels, multi_line, sep)</span>
+<span id="cb54-8"><a href="#cb54-8"></a>}</span>
+<span id="cb54-9"><a href="#cb54-9"></a></span>
+<span id="cb54-10"><a href="#cb54-10"></a><span class="co"># Here the feature plot method</span></span>
+<span id="cb54-11"><a href="#cb54-11"></a>custom_feature_plot <span class="ot">&lt;-</span> <span class="cf">function</span>(explanation, ncol) {</span>
+<span id="cb54-12"><a href="#cb54-12"></a>  </span>
+<span id="cb54-13"><a href="#cb54-13"></a>  <span class="co"># Define color palette</span></span>
+<span id="cb54-14"><a href="#cb54-14"></a>  colors <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb54-15"><a href="#cb54-15"></a>    <span class="st">"Supports"</span> <span class="ot">=</span> <span class="st">"blue"</span>,</span>
+<span id="cb54-16"><a href="#cb54-16"></a>    <span class="st">"Contradicts"</span> <span class="ot">=</span> <span class="st">"red"</span></span>
+<span id="cb54-17"><a href="#cb54-17"></a>  )</span>
+<span id="cb54-18"><a href="#cb54-18"></a>  </span>
+<span id="cb54-19"><a href="#cb54-19"></a>  <span class="co"># Define fill color column that specifies the color of the row in the plot</span></span>
+<span id="cb54-20"><a href="#cb54-20"></a>  <span class="co"># based on its key</span></span>
+<span id="cb54-21"><a href="#cb54-21"></a>  explanation <span class="ot">&lt;-</span> explanation <span class="sc">%&gt;%</span></span>
+<span id="cb54-22"><a href="#cb54-22"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb54-23"><a href="#cb54-23"></a>      <span class="at">fill_color =</span> <span class="fu">ifelse</span>(feature_weight <span class="sc">&gt;</span> <span class="dv">0</span>, <span class="st">"Supports"</span>, <span class="st">"Contradicts"</span>)</span>
+<span id="cb54-24"><a href="#cb54-24"></a>    )</span>
+<span id="cb54-25"><a href="#cb54-25"></a>  </span>
+<span id="cb54-26"><a href="#cb54-26"></a>  <span class="co"># Create description by combining case and label, and also</span></span>
+<span id="cb54-27"><a href="#cb54-27"></a>  <span class="co"># append feature description</span></span>
+<span id="cb54-28"><a href="#cb54-28"></a>  explanation<span class="sc">$</span>description <span class="ot">&lt;-</span> <span class="fu">with</span>(explanation, <span class="fu">factor</span>(</span>
+<span id="cb54-29"><a href="#cb54-29"></a>    <span class="fu">paste0</span>(case, <span class="st">'_'</span>, label, <span class="fu">format</span>(feature_desc)),</span>
+<span id="cb54-30"><a href="#cb54-30"></a>    <span class="at">levels =</span> <span class="fu">paste0</span>(case, <span class="st">'_'</span>, label, <span class="fu">format</span>(feature_desc))[<span class="fu">order</span>(<span class="fu">abs</span>(feature_weight))]</span>
+<span id="cb54-31"><a href="#cb54-31"></a>  ))</span>
+<span id="cb54-32"><a href="#cb54-32"></a>  </span>
+<span id="cb54-33"><a href="#cb54-33"></a>  <span class="co"># Format model R-squared and label probability to two decimal places</span></span>
+<span id="cb54-34"><a href="#cb54-34"></a>  explanation<span class="sc">$</span>explanation_fit <span class="ot">&lt;-</span> <span class="fu">format</span>(explanation<span class="sc">$</span>model_r2, <span class="at">digits =</span> <span class="dv">2</span>)</span>
+<span id="cb54-35"><a href="#cb54-35"></a>  explanation<span class="sc">$</span>probability <span class="ot">&lt;-</span> <span class="fu">format</span>(explanation<span class="sc">$</span>label_prob, <span class="at">digits =</span> <span class="dv">2</span>)</span>
+<span id="cb54-36"><a href="#cb54-36"></a>  </span>
+<span id="cb54-37"><a href="#cb54-37"></a>  <span class="co"># Convert label to a factor and order based on label probability in decreasing order</span></span>
+<span id="cb54-38"><a href="#cb54-38"></a>  explanation<span class="sc">$</span>label <span class="ot">&lt;-</span> <span class="fu">factor</span>(explanation<span class="sc">$</span>label, </span>
+<span id="cb54-39"><a href="#cb54-39"></a>                              <span class="at">levels =</span> <span class="fu">unique</span>(explanation<span class="sc">$</span>label[<span class="fu">order</span>(explanation<span class="sc">$</span>label_prob, <span class="at">decreasing =</span> <span class="cn">TRUE</span>)]))</span>
+<span id="cb54-40"><a href="#cb54-40"></a>  </span>
+<span id="cb54-41"><a href="#cb54-41"></a>  <span class="co"># Create plot</span></span>
+<span id="cb54-42"><a href="#cb54-42"></a>  <span class="fu">ggplot</span>(explanation) <span class="sc">+</span></span>
+<span id="cb54-43"><a href="#cb54-43"></a>    </span>
+<span id="cb54-44"><a href="#cb54-44"></a>    <span class="co"># Create subplots based on the ncol parameter</span></span>
+<span id="cb54-45"><a href="#cb54-45"></a>    <span class="fu">facet_wrap</span>(</span>
+<span id="cb54-46"><a href="#cb54-46"></a>      <span class="sc">~</span> case <span class="sc">+</span> label <span class="sc">+</span> probability <span class="sc">+</span> explanation_fit,</span>
+<span id="cb54-47"><a href="#cb54-47"></a>      <span class="at">labeller =</span> custom_labeller,</span>
+<span id="cb54-48"><a href="#cb54-48"></a>      <span class="at">scales =</span> <span class="st">'free_y'</span>,</span>
+<span id="cb54-49"><a href="#cb54-49"></a>      <span class="at">ncol =</span> ncol</span>
+<span id="cb54-50"><a href="#cb54-50"></a>    ) <span class="sc">+</span></span>
+<span id="cb54-51"><a href="#cb54-51"></a>    </span>
+<span id="cb54-52"><a href="#cb54-52"></a>    <span class="co"># Create column plots (similar to bar plot) for each case with feture weight</span></span>
+<span id="cb54-53"><a href="#cb54-53"></a>    <span class="co"># as x-value</span></span>
+<span id="cb54-54"><a href="#cb54-54"></a>    <span class="co"># Feature description on y axis</span></span>
+<span id="cb54-55"><a href="#cb54-55"></a>    <span class="co"># Color of bar is defined based on the respective fill_color value</span></span>
+<span id="cb54-56"><a href="#cb54-56"></a>    <span class="fu">geom_col</span>(<span class="fu">aes</span>(</span>
+<span id="cb54-57"><a href="#cb54-57"></a>      <span class="at">x =</span> feature_weight,</span>
+<span id="cb54-58"><a href="#cb54-58"></a>      <span class="at">y =</span> <span class="fu">reorder</span>(feature_desc, <span class="fu">abs</span>(feature_weight)),</span>
+<span id="cb54-59"><a href="#cb54-59"></a>      <span class="at">fill =</span> fill_color</span>
+<span id="cb54-60"><a href="#cb54-60"></a>    )) <span class="sc">+</span></span>
+<span id="cb54-61"><a href="#cb54-61"></a>    </span>
+<span id="cb54-62"><a href="#cb54-62"></a>    <span class="co"># Define x,y axis and title</span></span>
+<span id="cb54-63"><a href="#cb54-63"></a>    <span class="fu">labs</span>(</span>
+<span id="cb54-64"><a href="#cb54-64"></a>      <span class="at">title =</span> <span class="st">"Feature Importance"</span>,</span>
+<span id="cb54-65"><a href="#cb54-65"></a>      <span class="at">x =</span> <span class="st">"Feature Weight"</span>,</span>
+<span id="cb54-66"><a href="#cb54-66"></a>      <span class="at">y =</span> <span class="st">"Feature Description"</span>,</span>
+<span id="cb54-67"><a href="#cb54-67"></a>      <span class="at">fill =</span> <span class="st">"Support vs Contradiction"</span></span>
+<span id="cb54-68"><a href="#cb54-68"></a>    ) <span class="sc">+</span></span>
+<span id="cb54-69"><a href="#cb54-69"></a>    <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb54-70"><a href="#cb54-70"></a>    <span class="fu">theme</span>(</span>
+<span id="cb54-71"><a href="#cb54-71"></a>      <span class="at">panel.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">"white"</span>, <span class="at">colour =</span> <span class="st">"white"</span>),</span>
+<span id="cb54-72"><a href="#cb54-72"></a>      <span class="at">plot.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">"white"</span>, <span class="at">colour =</span> <span class="st">"white"</span>)</span>
+<span id="cb54-73"><a href="#cb54-73"></a>    )</span>
+<span id="cb54-74"><a href="#cb54-74"></a>}</span>
+<span id="cb54-75"><a href="#cb54-75"></a></span>
+<span id="cb54-76"><a href="#cb54-76"></a><span class="co"># Plot for the multiple explanation object</span></span>
+<span id="cb54-77"><a href="#cb54-77"></a><span class="fu">custom_feature_plot</span>(<span class="at">explanation =</span> explanation, <span class="at">ncol=</span><span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure"><p><a href="06_black_box_models_files/figure-html/unnamed-chunk-12-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4"><img src="06_black_box_models_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" width="1344"></a></p>
+</figure>
+</div>
+</div>
+</div>
+</section><section id="code-plot-explanations-method" class="level3"><h3 class="anchored" data-anchor-id="code-plot-explanations-method">Code plot explanations method</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb55"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1"></a><span class="co"># Here the explanation plot method</span></span>
+<span id="cb55-2"><a href="#cb55-2"></a>custom_explanation_plot <span class="ot">&lt;-</span> <span class="cf">function</span>(explanation) {</span>
+<span id="cb55-3"><a href="#cb55-3"></a>  <span class="co"># Set custom margin value</span></span>
+<span id="cb55-4"><a href="#cb55-4"></a>  custom_margin <span class="ot">=</span> <span class="dv">30</span></span>
+<span id="cb55-5"><a href="#cb55-5"></a>  </span>
+<span id="cb55-6"><a href="#cb55-6"></a>  <span class="co"># Create plot</span></span>
+<span id="cb55-7"><a href="#cb55-7"></a>  <span class="fu">ggplot</span>(explanation, <span class="fu">aes_</span>(<span class="sc">~</span>case, <span class="sc">~</span>feature_desc)) <span class="sc">+</span></span>
+<span id="cb55-8"><a href="#cb55-8"></a>    </span>
+<span id="cb55-9"><a href="#cb55-9"></a>    <span class="co"># Create tiles in plot with feature weight </span></span>
+<span id="cb55-10"><a href="#cb55-10"></a>    <span class="fu">geom_tile</span>(<span class="fu">aes_</span>(<span class="at">fill =</span> <span class="sc">~</span>feature_weight)) <span class="sc">+</span></span>
+<span id="cb55-11"><a href="#cb55-11"></a>    </span>
+<span id="cb55-12"><a href="#cb55-12"></a>    <span class="co"># Define discrete x and y axis</span></span>
+<span id="cb55-13"><a href="#cb55-13"></a>    <span class="fu">scale_x_discrete</span>(<span class="st">'Case'</span>, <span class="at">expand =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>)) <span class="sc">+</span></span>
+<span id="cb55-14"><a href="#cb55-14"></a>    <span class="fu">scale_y_discrete</span>(<span class="st">'Feature'</span>, <span class="at">expand =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>)) <span class="sc">+</span></span>
+<span id="cb55-15"><a href="#cb55-15"></a>    </span>
+<span id="cb55-16"><a href="#cb55-16"></a>    <span class="co"># Create color gradient from red to blue based on the value of feature weight</span></span>
+<span id="cb55-17"><a href="#cb55-17"></a>    <span class="fu">scale_fill_gradient2</span>(<span class="st">'Feature Weight'</span>, <span class="at">low =</span> <span class="st">'red'</span>, <span class="at">mid =</span> <span class="st">'white'</span>, <span class="at">high =</span> <span class="st">'blue'</span>) <span class="sc">+</span></span>
+<span id="cb55-18"><a href="#cb55-18"></a>    </span>
+<span id="cb55-19"><a href="#cb55-19"></a>    <span class="co"># Define custom styling such as colors, border, and margin</span></span>
+<span id="cb55-20"><a href="#cb55-20"></a>    <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb55-21"><a href="#cb55-21"></a>    <span class="fu">theme</span>(</span>
+<span id="cb55-22"><a href="#cb55-22"></a>      <span class="at">panel.border =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="cn">NA</span>, <span class="at">colour =</span> <span class="st">'grey60'</span>, <span class="at">size =</span> <span class="dv">1</span>),</span>
+<span id="cb55-23"><a href="#cb55-23"></a>      <span class="at">panel.grid =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb55-24"><a href="#cb55-24"></a>      <span class="at">panel.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">"white"</span>, <span class="at">colour =</span> <span class="st">"white"</span>),</span>
+<span id="cb55-25"><a href="#cb55-25"></a>      <span class="at">plot.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">"white"</span>, <span class="at">colour =</span> <span class="st">"white"</span>),</span>
+<span id="cb55-26"><a href="#cb55-26"></a>      <span class="at">plot.margin =</span> <span class="fu">margin</span>(custom_margin, custom_margin, custom_margin, custom_margin),</span>
+<span id="cb55-27"><a href="#cb55-27"></a>      <span class="at">legend.position =</span> <span class="st">'bottom'</span>,</span>
+<span id="cb55-28"><a href="#cb55-28"></a>    )</span>
+<span id="cb55-29"><a href="#cb55-29"></a>}</span>
+<span id="cb55-30"><a href="#cb55-30"></a></span>
+<span id="cb55-31"><a href="#cb55-31"></a><span class="co"># Call custom explanation plot with current explanation object as parameter</span></span>
+<span id="cb55-32"><a href="#cb55-32"></a><span class="fu">custom_explanation_plot</span>(<span class="at">explanation =</span> explanation)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; Warning: `aes_()` was deprecated in ggplot2 3.0.0.
+#&gt; ℹ Please use tidy evaluation idioms with `aes()`</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>#&gt; Warning: The `size` argument of `element_rect()` is deprecated as of ggplot2 3.4.0.
+#&gt; ℹ Please use the `linewidth` argument instead.</code></pre>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure"><p><a href="06_black_box_models_files/figure-html/unnamed-chunk-13-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-5"><img src="06_black_box_models_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="672"></a></p>
+</figure>
+</div>
+</div>
+</div>
 
 
-</section></main><!-- /main --><script id="quarto-html-after-body" type="application/javascript">
+</section></section></main><!-- /main --><script id="quarto-html-after-body" type="application/javascript">
 window.document.addEventListener("DOMContentLoaded", function (event) {
   const toggleBodyColorMode = (bsSheetEl) => {
     const mode = bsSheetEl.getAttribute("data-mode");
@@ -902,7 +1971,31 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 });
 </script>
 </div> <!-- /content -->
+<script>var lightboxQuarto = GLightbox({"descPosition":"bottom","selector":".lightbox","closeEffect":"zoom","loop":false,"openEffect":"zoom"});
+window.onload = () => {
+  lightboxQuarto.on('slide_before_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    const href = trigger.getAttribute('href');
+    if (href !== null) {
+      const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+      if (imgEl !== null) {
+        const srcAttr = imgEl.getAttribute("src");
+        if (srcAttr && srcAttr.startsWith("data:")) {
+          slideConfig.href = srcAttr;
+        }
+      }
+    } 
+  });
 
+  lightboxQuarto.on('slide_after_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    if (window.Quarto?.typesetMath) {
+      window.Quarto.typesetMath(slideNode);
+    }
+  });
+
+};
+          </script>
 
 
 </body></html>
