@@ -1,0 +1,217 @@
+---
+title: "01 Machine Learning Fundamentals"
+author: "Maximilian Muza"
+date: "7/6/2024"
+params:
+  data_dir: "../../data/"
+format: 
+  html:
+    df_print: paged
+---
+
+Load the absolute path to the data directory.
+
+```{r}
+data_dir <- params$data_dir
+```
+
+
+# Libraries
+Load the following libraries. 
+
+```{r results = "hide"}
+library(tidyverse)
+library(tidyquant)
+library(broom)
+library(umap)
+```
+
+
+# Data
+
+```{r}
+# STOCK PRICES
+sp_500_prices_tbl <- read_rds("C:/Users/MaximilianMuza/Documents/Projects/ss24-bdml-MaximilianMuza/data/sp_500_prices_tbl.rds")
+print(sp_500_prices_tbl)
+```
+
+```{r}
+# SECTOR INFORMATION
+sp_500_index_tbl <- read_rds(file.path(data_dir, "sp_500_index_tbl.rds"))
+sp_500_index_tbl |> as_tibble() |> print()
+```
+
+## Stock Prices Standardization
+Stock prices (adjusted stock price) are standardized by converting them into daily returns (percent change from previous day). This is done such that the stock prices are of the same magnitude and can thus be compared. Below is the sp 500 price table shown:
+
+```{r}
+sp_500_prices_tbl %>% glimpse()
+```
+
+```{r}
+sp_500_daily_returns_tbl <- sp_500_prices_tbl %>%
+  select(symbol, date, adjusted) %>%
+  filter(date >= as.Date("2018-01-01")) %>%
+  group_by(symbol) %>%
+  mutate(adjusted_lag = lag(adjusted)) %>%
+  filter(!is.na(adjusted_lag)) %>%
+  mutate(difference = adjusted - adjusted_lag) %>%
+  mutate(pct_return = difference / adjusted_lag) %>%
+  select(symbol, date, pct_return) %>%
+  ungroup()
+print(sp_500_daily_returns_tbl)
+```
+
+
+## Conversion to User-Item Format
+The next step involves converting to a user-item format with the `symbol` in the first column and every other column the value of the _daily returns_ (`pct_return`) for every stock at each `date`. The user in this case is the `symbol` (company), and the item in this case is the `pct_return` at each `date`.
+
+Importing the correct results first (just in case I was not able to complete the last step).
+
+```{r}
+sp_500_daily_returns_tbl <- read_rds(file.path(data_dir, "sp_500_daily_returns_tbl.rds"))
+print(sp_500_daily_returns_tbl)
+```
+
+And the conversion follows with:
+
+```{r}
+stock_date_matrix_tbl <- sp_500_daily_returns_tbl %>%
+  spread(key = date, value = pct_return, fill = 0)
+stock_date_matrix_tbl |> as_tibble() |> print()
+```
+
+
+## K-Means Clustering
+
+Importing the correct results first (just in case I was not able to complete the last step).
+
+```{r}
+stock_date_matrix_tbl <- read_rds(file.path(data_dir, "stock_date_matrix_tbl.rds"))
+stock_date_matrix_tbl |> as_tibble() |> print()
+```
+
+And then executing the KMeans operation:
+
+```{r}
+# Create kmeans_obj for 4 centers
+NUM_CENTERS <- 4
+N_START = 20
+
+kmeans_obj <- stock_date_matrix_tbl %>%
+    select(-symbol) %>%
+    kmeans(centers = NUM_CENTERS, nstart = N_START)
+print(kmeans_obj$cluster)
+```
+
+And using `glance()` to get the `tot.withinss`. 
+
+```{r}
+kmeans_obj %>% glance() %>% print()
+```
+
+## Finding Optimal K
+
+```{r}
+kmeans_mapper <- function(center = 3) {
+    stock_date_matrix_tbl %>%
+        select(-symbol) %>%
+        kmeans(centers = center, nstart = 20)
+}
+```
+
+```{r}
+# Use purrr to map
+kmeans_mapped_tbl <- tibble(centers = 1:30) %>%
+    mutate(k_means = centers %>% map(kmeans_mapper)) %>%
+    mutate(glance  = k_means %>% map(glance))
+print(kmeans_mapped_tbl)
+```
+
+```{r}
+# Visualize Scree Plot
+kmeans_mapped_tbl %>%
+    unnest(glance) %>%
+    ggplot(aes(x = centers, y = tot.withinss)) +
+    geom_point() +
+    geom_line()
+```
+
+
+## UMAP Application
+
+```{r}
+k_means_mapped_tbl <- read_rds(file.path(data_dir, "k_means_mapped_tbl.rds"))
+print(k_means_mapped_tbl)
+```
+
+```{r}
+# Apply UMAP
+umap_results <- stock_date_matrix_tbl %>%
+  select(-symbol) %>%
+  umap()
+umap_results
+```
+
+```{r}
+# Convert umap results to tibble with symbols
+umap_results_tbl <- umap_results$layout %>%
+    as_tibble() %>%
+    bind_cols(
+      stock_date_matrix_tbl %>% select(symbol)
+  )
+print(umap_results_tbl)
+```
+
+```{r}
+# Visualize UMAP results
+umap_results_tbl %>%
+  ggplot(aes(x = V1, y = V2)) +
+  geom_point(alpha = 0.5) +
+  theme_tq() +
+  labs(title = "UMAP Projection")
+```
+
+## Combination of K-Means and UMAP
+Now the K-Means clusters and the UMAP 2D representation are being combined
+
+Importing the correct results first (just in case I was not able to complete the last step).
+
+```{r}
+k_means_mapped_tbl <- read_rds(file.path(data_dir, "k_means_mapped_tbl.rds"))
+umap_results_tbl   <- read_rds(file.path(data_dir, "umap_results_tbl.rds"))
+print(umap_results_tbl)
+```
+
+
+Now, the first 10 KMeans items are to be selected as the ScreePlot flattens beyond this one.
+
+```{r}
+# Get the k_means_obj from the 10th center
+k_means_obj <- k_means_mapped_tbl %>%
+  pull(k_means) %>%
+  pluck(10)
+```
+
+Next, the clusters from the `k_means_obj` with the `umap_results_tbl` are being combined.
+
+```{r}
+umap_kmeans_results_tbl <- k_means_obj %>%
+  augment(stock_date_matrix_tbl) %>%
+  select(symbol, .cluster) %>%
+  left_join(umap_results_tbl, by = "symbol") %>%
+  left_join(sp_500_index_tbl %>% select(symbol, company, sector), by = "symbol")
+print(umap_kmeans_results_tbl)
+```
+
+And finally plotting the K-Means and UMAP results.
+
+```{r}
+# Visualize the combined K-Means and UMAP results
+library(viridis)
+
+umap_kmeans_results_tbl %>%
+  ggplot(aes(x = V1, y = V2, color = .cluster)) +
+  geom_point(alpha = 0.5) +
+  scale_color_manual(values = viridis_pal()(10))
+```

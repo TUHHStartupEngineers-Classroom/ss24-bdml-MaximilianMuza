@@ -1,0 +1,116 @@
+---
+title: "02 Supervised Machine Learning Regression"
+author: "Maximilian Muza"
+params:
+  data_dir: "../../data/"
+---
+
+Load the absolute path to the data directory.
+
+```{r}
+data_dir <- params$data_dir
+```
+
+# Libraries
+```{r}
+library(tidymodels)
+library(tidyverse)
+library(recipes)
+library(rsample)
+library(yardstick)
+```
+
+# Data
+```{r}
+bike_features_tbl <- readRDS(file.path(data_dir, "bike_features_tbl.rds"))
+bike_features_tbl |> as_tibble() |> print()
+```
+
+Transform dataset
+```{r}
+bike_features_trafo_tbl <- bike_features_tbl %>% 
+    select(model:url, `Rear Derailleur`, `Shift Lever`) %>%
+    mutate_if(is.numeric, ~replace(., is.na(.), 0)) %>%
+    mutate(id = row_number()) %>% 
+    select(id, everything(), -url)
+bike_features_trafo_tbl |> as_tibble() |> print()
+```
+
+Create training and testing dataset (Hold-out method)
+```{r}
+bike_features_trafo_tbl %>% distinct(category_2) %>% print()
+
+set.seed(123)
+split <- initial_split(bike_features_trafo_tbl, prop = 3/4, strata = "category_2")
+
+split %>% training() %>% distinct(category_2) %>% print()
+split %>% testing() %>% distinct(category_2) %>% print()
+
+train_tbl <- training(split)
+test_tbl  <- testing(split)
+
+train_tbl <- train_tbl %>% set_names(str_replace_all(names(train_tbl), " |-", "_"))
+test_tbl  <- test_tbl  %>% set_names(str_replace_all(names(test_tbl),  " |-", "_"))
+```
+
+
+# Model Construction
+First step involves building a ML model.
+```{r}
+linear_reg_model <- linear_reg(mode = "regression") %>%
+    set_engine("lm")
+linear_reg_model %>% print()
+```
+
+
+# Feature Creation
+In this step, features are being created by the use of the recipe package.
+```{r}
+# Determine feature trafo
+bike_recipe <- recipe(price ~ category_2 + frame_material, data = train_tbl) %>%
+  step_rm(url, model) %>%
+  step_dummy(all_nominal(), -all_outcomes(), one_hot = TRUE)
+bike_recipe
+```
+
+
+# Model and Recipe Bundling 
+The ML model and the recipe is being bundled by the use of the workflow package.
+```{r}
+bike_workflow <- workflow() %>% 
+  add_model(linear_reg_model) %>% 
+  add_recipe(bike_recipe) %>%
+  fit(data = train_tbl)
+bike_workflow
+```
+
+
+# Performance Measures 
+Model evaluation by the use of the yardstick package
+```{r}
+evaluation <- bike_workflow %>%
+  predict(new_data = test_tbl) %>%
+  bind_cols(test_tbl %>% select(price)) %>%
+  metrics(truth = price, estimate = .pred)
+evaluation
+```
+
+
+# Visualization
+```{r}
+g1 <- bike_features_trafo_tbl %>% 
+    mutate(category_2 = as.factor(category_2) %>% 
+           fct_reorder(price)) %>% 
+    
+    ggplot(aes(category_2, price)) +
+    geom_violin() +
+    geom_jitter(width = 0.1, alpha = 0.5, color = "#2dc6d6") +
+    coord_flip() +
+    facet_wrap(~ frame_material) +
+    scale_y_continuous(labels = scales::dollar_format()) +
+    labs(
+        title = "Unit Price for Each Model",
+        y = "", x = "Category 2"
+    )
+g1
+```

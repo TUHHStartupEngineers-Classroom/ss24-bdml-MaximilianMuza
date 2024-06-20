@@ -1,0 +1,149 @@
+---
+title: "03 Automated Machine Learning with H2O (I)"
+author: "Maximilian Muza"
+date: "6/6/2024"
+params:
+  data_dir: "../../data/"
+---
+
+Load the absolute path to the data directory.
+
+```{r}
+data_dir <- params$data_dir
+```
+
+# Libraries 
+```{r}
+library(tidyverse)
+library(readxl)
+library(skimr)
+library(GGally)
+```
+
+# Load Data Definitions
+```{r}
+definitions_raw_tbl   <- read_excel(file.path(data_dir, "data_definitions.xlsx"), sheet = 1, col_names = FALSE)
+definitions_raw_tbl |> as_tibble() |> print()
+```
+
+# Load Employee Attrition
+```{r}
+employee_attrition_tbl <- read_csv(file.path(data_dir, "datasets-1067-1925-WA_Fn-UseC_-HR-Employee-Attrition.txt"))
+employee_attrition_tbl |> as_tibble() |> print()
+```
+
+# Create Visualization Method
+```{r}
+plot_ggpairs <- function(data, color = NULL, density_alpha = 0.5) {
+    
+    color_expr <- enquo(color)
+    
+    if (rlang::quo_is_null(color_expr)) {
+        
+        g <- data %>%
+            ggpairs(lower = "blank") 
+        
+    } else {
+        
+        color_name <- quo_name(color_expr)
+        
+        g <- data %>%
+            ggpairs(mapping = aes_string(color = color_name), 
+                    lower = "blank", legend = 1,
+                    diag = list(continuous = wrap("densityDiag", 
+                                                  alpha = density_alpha))) +
+            theme(legend.position = "bottom")
+    }
+    
+    return(g)
+    
+}
+```
+
+# Visualize Feature Groups
+```{r fig.width=10, fig.height=7}
+# Descriptive Features
+employee_attrition_tbl %>% 
+  select(Attrition, Age, DistanceFromHome, Gender, MaritalStatus, NumCompaniesWorked, Over18) %>%
+  plot_ggpairs(Attrition)
+
+# Employment Features
+employee_attrition_tbl %>% 
+  select(Attrition, Department, EmployeeCount, EmployeeNumber, JobInvolvement, JobLevel, JobRole, JobSatisfaction) %>%
+  plot_ggpairs(Attrition)
+
+# Compensation Features
+employee_attrition_tbl %>% 
+  select(Attrition, MonthlyIncome, PercentSalaryHike, StockOptionLevel) %>%
+  plot_ggpairs(Attrition)
+
+# Survery Results
+employee_attrition_tbl %>% 
+  select(Attrition, EnvironmentSatisfaction, JobSatisfaction, RelationshipSatisfaction, WorkLifeBalance) %>%
+  plot_ggpairs(Attrition)
+
+# Performance Data
+employee_attrition_tbl %>% 
+  select(Attrition, JobInvolvement, PerformanceRating) %>%
+  plot_ggpairs(Attrition)
+
+# Work-Life Features
+employee_attrition_tbl %>% 
+  select(Attrition, BusinessTravel, OverTime) %>%
+    plot_ggpairs(Attrition)
+
+# Training & Education
+employee_attrition_tbl %>% 
+  select(Attrition, Education, EducationField, TrainingTimesLastYear) %>%
+  plot_ggpairs(Attrition)
+
+# Time-Based Features
+employee_attrition_tbl %>% 
+  select(Attrition, TotalWorkingYears, YearsAtCompany, YearsInCurrentRole, YearsSinceLastPromotion, YearsWithCurrManager) %>%
+    plot_ggpairs(Attrition)
+```
+
+
+# Challenge Solutions
+The challenge question are solved based on the graphs plotted above for the feature groups.
+
+### _1. Compensation Features_
+What can you deduce about the interaction between Monthly Income and Attrition? \
+**Solution:** c. Those that are leaving have a lower Monthly Income.
+
+### _2. Compensation Features_
+What can you deduce about the interaction between Percent Salary Hike and Attrition? \
+**Solution:** c. Those that are leaving have lower Percent Salary Hike \
+**Note:** However, it must be noted this distinction is not super clear as for both attrition options "yes" and "no" the mean percent salary hike is the same. Only the max value of the percent salary hike is bigger for "yes". That's why I decide for c).
+
+### _3. Compensation Features_
+What can you deduce about the interaction between Stock Option Level and Attrition? \
+**Solution:** b. Those that are staying have a higher stock option level.
+
+### _4. Survey Results_
+What can you deduce about the interaction between Environment Satisfaction and Attrition? \
+**Solution:** A higher proportion of those leaving have a low environment satisfaction level.
+
+### _5. Survey Results_
+What can you deduce about the interaction between Work Life Balance and Attrition \
+**Solution:** b. Those that are staying have a higher density of 2's and 3's.
+
+### _6. Performance Data_
+What Can you deduce about the interaction between Job Involvement and Attrition? \
+**Solution:** a. Those that are leaving have a lower density of 3's and 4's.
+
+### _7. Work-Life Features_
+What can you deduce about the interaction between Over Time and Attrition? \
+**Solution:** b. The proportion of those staying that are working Over Time are high compared to those that are not staying.
+
+### _8. Training and Education_
+What can you deduce about the interaction between Training Times Last Year and Attrition \
+**Solution:** b. People that leave tend to have less annual trainings.
+
+### _9. Time-Based Features_
+What can you deduce about the interaction between Years At Company and Attrition \
+**Solution:** b. People that leave tend to have less working years at the company.
+
+### _10. Time-Based Features_
+What can you deduce about the interaction between Years Since Last Promotion and Attrition? \
+**Solution:** a. Those that are leaving have more years since last promotion than those that are staying.
