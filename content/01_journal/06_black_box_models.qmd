@@ -2,5 +2,119 @@
 title: "06 Black-Box Models with LIME"
 author: "Maximilian Muza"
 date: "6/6/2024"
+params:
+  data_dir: "../../data/"
+  models_dir: "../../models/"
 ---
 
+Load the absolute path to the data directory.
+
+```{r}
+data_dir <- params$data_dir
+models_dir <- params$models_dir
+```
+
+# Libraries
+```{r, results = "hide"}
+library(h2o)
+library(tidyverse)
+library(readxl)
+library(recipes)
+library(rsample)
+library(skimr)
+library(GGally)
+library(tidyquant)
+library(lime)
+```
+
+# Data
+
+Load data definitions
+```{r}
+definitions_raw_tbl   <- read_excel(file.path(data_dir, "data_definitions.xlsx"), sheet = 1, col_names = FALSE)
+definitions_raw_tbl |> as_tibble() |> print()
+```
+
+Load employee attrition
+```{r}
+employee_attrition_tbl <- read_csv(file.path(data_dir, "datasets-1067-1925-WA_Fn-UseC_-HR-Employee-Attrition.txt"))
+employee_attrition_tbl |> as_tibble() |> print()
+```
+
+Make HR data readable
+```{r}
+process_hr_data_readable <- function(data, definitions_tbl) {
+  
+  definitions_list <- definitions_tbl %>%
+    fill(...1, .direction = "down") %>%
+    filter(!is.na(...2)) %>%
+    separate(...2, into = c("key", "value"), sep = " '", remove = TRUE) %>%
+    rename(column_name = ...1) %>%
+    mutate(key = as.numeric(key)) %>%
+    mutate(value = value %>% str_replace(pattern = "'", replacement = "")) %>%
+    split(.$column_name) %>%
+    map(~ select(., -column_name)) %>%
+    map(~ mutate(., value = as_factor(value))) 
+  
+  for (i in seq_along(definitions_list)) {
+    list_name <- names(definitions_list)[i]
+    colnames(definitions_list[[i]]) <- c(list_name, paste0(list_name, "_value"))
+  }
+  
+  data_merged_tbl <- list(HR_Data = data) %>%
+    append(definitions_list, after = 1) %>%
+    reduce(left_join) %>%
+    select(-one_of(names(definitions_list))) %>%
+    set_names(str_replace_all(names(.), pattern = "_value", 
+                              replacement = "")) %>%
+    select(sort(names(.))) %>%
+    mutate_if(is.character, as.factor) %>%
+    mutate(
+     
+    )
+  
+  return(data_merged_tbl)
+  
+}
+
+employee_attrition_readable_tbl <- process_hr_data_readable(employee_attrition_tbl, definitions_raw_tbl)
+```
+
+Create training and testing dataset (Hold-out method)
+```{r}
+set.seed(1234)
+split <- initial_split(employee_attrition_readable_tbl, prop = 0.85)
+
+train_tbl <- training(split)
+test_tbl  <- testing(split)
+```
+
+# ML Preprocessing Recipe
+```{r}
+recipe_obj <- recipe(Attrition ~ ., data = train_tbl) %>%
+                step_zv(all_predictors()) %>%
+                step_mutate_at(c("JobLevel", "StockOptionLevel"), fn = as.factor) %>% 
+                prep()
+
+recipe_obj
+
+train_tbl <- bake(recipe_obj, new_data = train_tbl)
+test_tbl  <- bake(recipe_obj, new_data = test_tbl)
+```
+
+# H2O Model
+```{r}
+h2o.init()
+
+automl_leader <- h2o.loadModel("C:/Users/MaximilianMuza/Documents/Projects/ss24-bdml-MaximilianMuza/models/StackedEnsemble_BestOfFamily_2_AutoML_1_20240614_153006")
+automl_leader
+
+predictions_tbl <- automl_leader %>% 
+    h2o.predict(newdata = as.h2o(test_tbl)) %>%
+    as.tibble() %>%
+    bind_cols(
+        test_tbl %>%
+            select(Attrition, EmployeeNumber)
+    )
+predictions_tbl
+```
