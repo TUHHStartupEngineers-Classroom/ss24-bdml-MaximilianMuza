@@ -32,7 +32,6 @@ library(tools)
 Load data definitions
 ```{r}
 full_path <- file.path(data_dir, "data_definitions.xlsx")
-print(full_path)
 definitions_raw_tbl   <- read_excel(full_path, sheet = 1, col_names = FALSE)
 definitions_raw_tbl |> as_tibble() |> print()
 ```
@@ -98,7 +97,8 @@ recipe_obj <- recipe(Attrition ~ ., data = train_tbl) %>%
                 step_mutate_at(c("JobLevel", "StockOptionLevel"), fn = as.factor) %>% 
                 prep()
 
-recipe_obj
+recipe_obj %>%
+  print()
 
 train_tbl <- bake(recipe_obj, new_data = train_tbl)
 test_tbl  <- bake(recipe_obj, new_data = test_tbl)
@@ -106,7 +106,7 @@ test_tbl  <- bake(recipe_obj, new_data = test_tbl)
 
 # H2O Model
 ```{r}
-h2o.init()
+h2o.init(max_mem_size="5G")
 
 automl_leader <- h2o.loadModel("C:/Users/MaximilianMuza/Documents/Projects/ss24-bdml-MaximilianMuza/models/StackedEnsemble_BestOfFamily_2_AutoML_1_20240619_143112")
 automl_leader
@@ -118,7 +118,8 @@ predictions_tbl <- automl_leader %>%
         test_tbl %>%
             select(Attrition, EmployeeNumber)
     )
-predictions_tbl
+predictions_tbl %>%
+  print()
 ```
 
 # Explainer Object
@@ -156,20 +157,19 @@ explanation <- test_tbl %>%
     # Let's start with 1
     kernel_width   = 4
   )
-explanation
 
 # Select relevant columns
 explanation %>%
   as.tibble() %>%
-  select(feature:prediction) 
+  select(feature:prediction) %>%
+  print()
 
 # Plot features
-g <- plot_features(explanation = explanation, ncol = 1)
-g
+plot_features(explanation = explanation, ncol = 1)
 ```
 
 # Multiple Explanation Object + Plot
-```{r}
+```{r, fig.width=16, fig.height=10}
 # Create multiple explanation object
 explanation <- test_tbl %>%
   slice(1:20) %>%
@@ -182,7 +182,8 @@ explanation <- test_tbl %>%
     kernel_width   = 0.5
   )
 explanation %>%
-  as.tibble()
+  as.tibble() %>%
+  print()
 
 # Plot the features
 # It can be seen that this plot is quite big and has lots of information
@@ -279,7 +280,7 @@ custom_feature_plot(explanation = explanation, ncol=4)
 # Here the explanation plot method
 custom_explanation_plot <- function(explanation) {
   # Set custom margin value
-  custom_margin = 30
+  custom_margin = 15
   
   # Create plot
   plot <- ggplot(explanation, aes_(~case, ~feature_desc)) +
